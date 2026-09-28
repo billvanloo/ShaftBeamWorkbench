@@ -1,0 +1,2384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="description" content="Shaft and Beam Workbench: place bearings and loads on a shaft and see the reactions, shear and bending moment diagrams, torque, stresses, safety factor and the diameter needed. Part of Engineered by the Numbers. Runs entirely in your browser.">
+<title>Shaft and Beam Workbench</title>
+<link rel="icon" href="data:,">
+<script>
+  (function () {
+    try {
+      var t = JSON.parse(localStorage.getItem('ebtn-theme') || 'null');
+      if (t !== 'light' && t !== 'dark') t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', t);
+    } catch (e) { document.documentElement.setAttribute('data-theme', 'light'); }
+  })();
+</script>
+<style>
+/* BEGIN vendor:shell.css */
+/* ecosystem/shell/shell.css v1.0.0
+   Shared look for the Engineered by the Numbers tools. Palette and header,
+   readout and footer patterns follow the Gear Train Workbench. Light theme is
+   "drafting paper"; data-theme="dark" is "blueprint". Every colour a tool
+   draws should come from these tokens (read them with app.pal()). */
+:root, :root[data-theme="light"]{
+  --paper:#F6F5F0; --grid-minor:#E7E5DC; --grid-major:#D8D5C8;
+  --ink:#23272C; --ink-soft:#555B63; --line:#C9C6BA;
+  --steel:#DCE1E6; --steel-edge:#7E8892;
+  --dykem:#1D5FA8; --dykem-soft:#E3ECF7;
+  --brass:#B08A2E; --brass-soft:#F5EBD2; --brass-ink:#7A5A16;
+  --pass:#2E7D46; --fail:#B3402F; --warn:#8A5A00;
+  --pos-fill:#DCE6F5; --neg-fill:#F6DDD8;
+  --dro-bg:#1D2126; --dro-amber:#FFB000; --dro-label:#8B929B;
+  --panel:#F1EFE8; --field:#ffffff; --rule:#B9B6AA; --th-bg:#EDEBE2;
+  --scrim:rgba(35,39,44,.5); --badge-text:#ffffff;
+  --font-ui:"Avenir Next","Segoe UI","Trebuchet MS",system-ui,sans-serif;
+  --font-mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,Menlo,monospace;
+  color-scheme:light;
+}
+:root[data-theme="dark"]{
+  --paper:#0C2B4E; --grid-minor:#123659; --grid-major:#1A4771;
+  --ink:#EAF2FB; --ink-soft:#A8C2DC; --line:#1E5183;
+  --steel:#5E86AB; --steel-edge:#E4EFFA;
+  --dykem:#5FD0E8; --dykem-soft:#123659;
+  --brass:#FFC94D; --brass-soft:#2A2410; --brass-ink:#FFC94D;
+  --pass:#57D493; --fail:#FF8A73; --warn:#FFC94D;
+  --pos-fill:#1D4D7A; --neg-fill:#5A2E3A;
+  --dro-bg:#071B31; --dro-amber:#FFC94D; --dro-label:#A8C2DC;
+  --panel:#0F3157; --field:#123659; --rule:#1E5183; --th-bg:#123659;
+  --scrim:rgba(3,15,28,.65); --badge-text:#08243F;
+  color-scheme:dark;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{font-family:var(--font-ui);color:var(--ink);background:var(--paper);display:flex;flex-direction:column;overflow:hidden;font-size:14px}
+button,input,select,textarea{font:inherit;color:inherit}
+a{color:var(--dykem)}
+
+/* ---------- Header / title block ---------- */
+.sh-header{display:flex;align-items:center;gap:10px;padding:7px 12px;border-bottom:2px solid var(--ink);background:var(--paper);flex-wrap:wrap}
+.titleblock{display:flex;flex-direction:column;line-height:1.15}
+.titleblock .t1{font-size:15px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;white-space:nowrap}
+.titleblock .t2{font-size:11.5px;letter-spacing:.06em;color:var(--ink-soft);text-transform:uppercase;white-space:nowrap}
+.modes{display:flex;border:1.5px solid var(--ink);border-radius:3px;overflow:hidden}
+.modes button{font:600 12.5px var(--font-ui);letter-spacing:.05em;text-transform:uppercase;padding:6px 11px;border:none;background:transparent;color:var(--ink);cursor:pointer}
+.modes button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.spacer{flex:1}
+.namewrap{display:flex;align-items:center;gap:6px;font-size:13px;letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft)}
+.namewrap input{font:15px var(--font-ui);border:none;border-bottom:1.5px solid var(--ink);background:transparent;padding:3px 4px;width:118px;color:var(--ink)}
+.hbtns{display:flex;gap:5px;flex-wrap:wrap}
+.hbtns button{font:600 12.5px var(--font-ui);letter-spacing:.02em;padding:6px 8px;border:1.5px solid var(--ink);background:var(--paper);color:var(--ink);border-radius:3px;cursor:pointer}
+.hbtns button:hover{background:var(--ink);color:var(--paper)}
+.hbtns button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+
+/* ---------- Small-screen notice ---------- */
+.sh-small{display:none;align-items:center;gap:10px;padding:6px 14px;background:var(--brass-soft);color:var(--ink);border-bottom:1.5px solid var(--brass);font-size:13px}
+.sh-small button{margin-left:auto;border:1.5px solid var(--ink);background:transparent;border-radius:3px;padding:2px 8px;cursor:pointer}
+@media (max-width:767.98px){ .sh-small:not([hidden]){display:flex} }
+
+/* ---------- Main three-column layout ---------- */
+.sh-main{flex:1;display:grid;grid-template-columns:300px minmax(0,1fr) 350px;min-height:0}
+.sh-col{overflow-y:auto;min-height:0}
+.sh-inputs{background:var(--panel);border-right:1.5px solid var(--line);padding:10px 12px 18px}
+.sh-results{background:var(--panel);border-left:1.5px solid var(--line);padding:10px 12px 18px}
+.sh-stage{padding:12px 14px;background-color:var(--paper);
+  background-image:linear-gradient(var(--grid-minor) 1px,transparent 1px),linear-gradient(90deg,var(--grid-minor) 1px,transparent 1px);
+  background-size:20px 20px}
+@media (max-width:1180px){ .sh-main{grid-template-columns:270px minmax(0,1fr) 310px} }
+@media (max-width:1023.98px){
+  body{overflow:auto}
+  .sh-main{grid-template-columns:1fr;min-height:auto}
+  .sh-col{overflow:visible}
+  .sh-inputs,.sh-results{border:none;border-top:1.5px solid var(--line)}
+  .sh-stage{order:-1}
+}
+
+/* ---------- Input panel ---------- */
+.sec-h{font:700 12px var(--font-ui);letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin:14px 0 6px;padding-bottom:3px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:8px}
+.sec-h:first-child{margin-top:2px}
+.fld{display:grid;grid-template-columns:minmax(0,1fr) minmax(108px,auto);align-items:center;gap:4px 8px;margin:5px 0}
+.fld>label,.fld>.lbl{font-size:13.5px;line-height:1.25}
+.fld .ctl{display:flex;align-items:center;gap:4px}
+.fld input[type=text],.fld select,.fld input[type=number]{width:80px;min-width:0;font:14px var(--font-mono);padding:4px 6px;border:1.5px solid var(--steel-edge);border-radius:3px;background:var(--field);color:var(--ink);text-align:right}
+.fld select{text-align:left;font-family:var(--font-ui);font-size:13.5px;width:auto;max-width:176px}
+.fld .unit{font-size:12px;color:var(--ink-soft);white-space:nowrap}
+.fld input[aria-invalid="true"]{border-color:var(--fail);border-width:2px}
+.fld .err{grid-column:1/-1;font-size:12.5px;line-height:1.35;color:var(--fail);font-weight:600}
+.fld .err:empty{display:none}
+.fld .err::before{content:"⚠ "}
+.fld.wide{grid-template-columns:1fr}
+.chk{display:flex;align-items:center;gap:7px;font-size:13.5px;margin:6px 0;cursor:pointer}
+.chk input{width:16px;height:16px;accent-color:var(--dykem)}
+.note{font-size:12.5px;line-height:1.45;color:var(--ink-soft);margin:6px 0}
+.note.warn{color:var(--warn);font-weight:600}
+.note.warn::before{content:"⚠ "}
+.btnrow{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0}
+.btn{font:600 13px var(--font-ui);letter-spacing:.03em;padding:6px 10px;border:1.5px solid var(--ink);background:var(--field);color:var(--ink);border-radius:3px;cursor:pointer}
+.btn:hover{background:var(--ink);color:var(--paper)}
+.btn.primary{background:var(--ink);color:var(--paper)}
+.btn.primary:hover{background:var(--dykem);border-color:var(--dykem);color:var(--badge-text)}
+.btn.small{padding:3px 7px;font-size:12px}
+.btn.danger{border-color:var(--fail);color:var(--fail)}
+.btn.danger:hover{background:var(--fail);color:var(--badge-text)}
+.btn:disabled{opacity:.5;cursor:not-allowed}
+.seg{display:inline-flex;border:1.5px solid var(--ink);border-radius:3px;overflow:hidden}
+.seg button{font:600 12.5px var(--font-ui);padding:4px 10px;border:none;background:var(--field);color:var(--ink);cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--ink);color:var(--paper)}
+.itemcard{border:1.5px solid var(--line);border-radius:4px;background:var(--field);padding:6px 8px;margin:6px 0}
+.itemcard.sel{border-color:var(--dykem);box-shadow:0 0 0 1px var(--dykem)}
+.itemcard .ih{display:flex;align-items:center;gap:6px;font-weight:600;font-size:13px}
+.itemcard .ih input{flex:1;min-width:0;font:600 13px var(--font-ui);border:none;border-bottom:1px dashed var(--line);background:transparent;padding:1px 2px}
+
+/* ---------- Stage (drawing) ---------- */
+.drawcard{background:var(--paper);border:1.5px solid var(--ink);border-radius:2px;position:relative}
+.drawcard svg{display:block;width:100%;height:auto;touch-action:none;user-select:none}
+.drawcard svg:focus-visible{outline:3px solid var(--dykem);outline-offset:-3px}
+.cap{font-size:12.5px;line-height:1.45;color:var(--ink-soft);margin-top:6px}
+.stationro{margin-top:8px;font:13px var(--font-mono);background:var(--field);border:1.5px solid var(--line);border-radius:3px;padding:6px 9px;min-height:2.2em}
+
+/* ---------- Results ---------- */
+.ro{width:100%;border-collapse:collapse;font-size:13.5px}
+.ro th{text-align:left;font-weight:400;padding:4px 4px 4px 0;border-bottom:1px dotted var(--line);vertical-align:top}
+.ro td{text-align:right;font:700 14px var(--font-mono);padding:4px 0;border-bottom:1px dotted var(--line);white-space:nowrap}
+.ro td.wrap{white-space:normal}
+.ro tr.sub th{padding-left:12px;color:var(--ink-soft)}
+.masked{display:inline-block;min-width:3.2em;text-align:center;border:1.5px dashed var(--ink-soft);border-radius:3px;color:var(--ink-soft);font-weight:400}
+.verdict{font-weight:700}
+.verdict.pass{color:var(--pass)}
+.verdict.fail{color:var(--fail)}
+.verdict.pass::before{content:"✓ "}
+.verdict.fail::before{content:"✗ "}
+.verdict.info{color:var(--warn)}
+.verdict.info::before{content:"● "}
+.reason{font:italic 13px var(--font-ui);color:var(--ink-soft);white-space:normal}
+
+/* ---------- Predict first ---------- */
+.pfbox{margin-top:12px;border:1.5px solid var(--ink);border-left-width:5px;border-radius:3px;background:var(--field);padding:9px 10px}
+.pfbox h3{font:700 12px var(--font-ui);letter-spacing:.12em;text-transform:uppercase;margin-bottom:6px}
+.pfrow{display:grid;grid-template-columns:minmax(0,1fr) 92px 40px;gap:6px;align-items:center;margin:5px 0;font-size:13.5px}
+.pfrow input{font:14px var(--font-mono);padding:4px 6px;border:1.5px solid var(--steel-edge);border-radius:3px;background:var(--field);color:var(--ink);text-align:right;width:100%}
+.pfrow .unit{font-size:12px;color:var(--ink-soft)}
+.pfmsg{font-size:13px;line-height:1.45;margin:5px 0;padding:5px 7px;border-left:3px solid var(--line);background:var(--panel)}
+.pfmsg.match{border-left-color:var(--pass)}
+.pfmsg.close{border-left-color:var(--brass)}
+.pfmsg b{font-family:var(--font-mono)}
+.pftag{font:700 11px var(--font-ui);letter-spacing:.08em;text-transform:uppercase;padding:1px 5px;border-radius:2px;margin-left:4px}
+.pftag.match{background:var(--pass);color:var(--badge-text)}
+.pftag.close{background:var(--brass-ink);color:var(--badge-text)}
+
+/* ---------- Show the working ---------- */
+.working{margin-top:12px;border:1.5px solid var(--line);border-radius:3px;background:var(--field)}
+.working>summary{cursor:pointer;padding:7px 10px;font:700 12px var(--font-ui);letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)}
+.working[open]>summary{color:var(--ink);border-bottom:1px solid var(--line)}
+.wk{list-style:none;padding:6px 10px 8px;counter-reset:wk}
+.wk li{counter-increment:wk;padding:6px 0;border-bottom:1px dotted var(--line);font-size:13px;line-height:1.5}
+.wk li:last-child{border-bottom:none}
+.wk .wt{font-weight:700}
+.wk .wt::before{content:counter(wk) ". "}
+.wk .wf,.wk .ws{font-family:var(--font-mono);font-size:12.5px;overflow-wrap:anywhere}
+.wk .wr{font-family:var(--font-mono);font-weight:700}
+.wk .wsrc{font-size:11.5px;color:var(--ink-soft);font-style:italic}
+
+/* ---------- Dialogs ---------- */
+dialog.sh-dlg{margin:auto;border:2px solid var(--ink);border-radius:5px;background:var(--paper);color:var(--ink);max-width:min(760px,94vw);width:100%;max-height:86vh;padding:0}
+dialog.sh-dlg::backdrop{background:var(--scrim)}
+.dlg-h{display:flex;align-items:center;gap:10px;padding:12px 18px;border-bottom:1.5px solid var(--line);position:sticky;top:0;background:var(--paper)}
+.dlg-h h2{font-size:15px;letter-spacing:.1em;text-transform:uppercase;flex:1}
+.dlg-b{padding:14px 18px 18px;overflow-y:auto}
+.dlg-b h3{font-size:14px;letter-spacing:.06em;text-transform:uppercase;margin:16px 0 6px}
+.dlg-b p,.dlg-b li{font-size:14.5px;line-height:1.6;margin-bottom:7px}
+.dlg-b ul,.dlg-b ol{padding-left:22px;margin-bottom:8px}
+.dlg-b table{border-collapse:collapse;font-size:13px;width:100%}
+.dlg-b th,.dlg-b td{border:1px solid var(--line);padding:4px 6px;text-align:left;vertical-align:top}
+.dlg-b th{background:var(--th-bg);font-size:11.5px;letter-spacing:.05em;text-transform:uppercase}
+.dlg-b td input{width:100%;min-width:60px;font:13px var(--font-mono);padding:2px 4px;border:1px solid var(--steel-edge);border-radius:2px;background:var(--field);color:var(--ink)}
+.dlg-b textarea{width:100%;font:12.5px var(--font-mono);padding:6px;border:1.5px solid var(--steel-edge);border-radius:3px;background:var(--field);color:var(--ink)}
+.teacher{margin-top:18px;padding:10px 12px;border:1.5px dashed var(--ink-soft);border-radius:3px}
+kbd{font:12px var(--font-mono);border:1px solid var(--steel-edge);border-bottom-width:2px;border-radius:3px;padding:1px 5px;background:var(--field)}
+
+/* ---------- Toast ---------- */
+.sh-toast{position:fixed;left:50%;bottom:54px;transform:translateX(-50%);background:var(--ink);color:var(--paper);font:14px var(--font-ui);padding:8px 16px;border-radius:4px;opacity:0;transition:opacity .25s;pointer-events:none;max-width:80vw;z-index:60}
+.sh-toast.on{opacity:1}
+
+/* ---------- Footer (attribution block, identical across tools) ---------- */
+.sh-footer{flex:0 0 auto;display:flex;align-items:center;flex-wrap:wrap;gap:4px 16px;padding:6px 14px;border-top:1.5px solid var(--line);background:var(--panel);font-size:12px;color:var(--ink-soft)}
+.sh-footer .foot-by{color:var(--ink)}
+.sh-footer a{color:var(--ink-soft);text-decoration:underline;text-underline-offset:2px;text-decoration-color:var(--line)}
+.sh-footer a:hover{color:var(--dykem);text-decoration-color:var(--dykem)}
+.sh-footer .foot-by a{color:var(--ink)}
+.sh-footer .foot-spacer{flex:1}
+.sh-footer .foot-ai{width:100%;order:10}
+
+/* ---------- Accessibility ---------- */
+:focus-visible{outline:2px solid var(--dykem);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms !important;animation-iteration-count:1 !important;transition-duration:.001ms !important;scroll-behavior:auto !important}
+}
+
+/* ---------- Print report (always ink on paper) ---------- */
+#sh-report{display:none}
+@media print{
+  @page{size:letter;margin:12mm}
+  body>*:not(#sh-report){display:none !important}
+  body{overflow:visible;height:auto;display:block;background:#fff;color:#000}
+  #sh-report{display:block !important;font-family:var(--font-ui);color:#000;font-size:11.5px}
+  #sh-report .rb{border:2px solid #000;padding:12px 16px;margin-bottom:10px}
+  #sh-report h1{font-size:17px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:2px}
+  #sh-report h2{font-size:12.5px;letter-spacing:.08em;text-transform:uppercase;margin:12px 0 4px;break-after:avoid}
+  #sh-report .sub{font-size:11px;letter-spacing:.06em;color:#444;margin-bottom:8px}
+  #sh-report table{width:100%;border-collapse:collapse;font-size:11px;margin:4px 0 8px;break-inside:auto}
+  #sh-report tr{break-inside:avoid}
+  #sh-report th,#sh-report td{border:1px solid #000;padding:3px 6px;text-align:left;vertical-align:top}
+  #sh-report th{background:#eee;font-size:10.5px;font-weight:700}
+  #sh-report tr.hd th{font-size:9.5px;letter-spacing:.06em;text-transform:uppercase}
+  #sh-report .fig{border:1px solid #000;break-inside:avoid}
+  #sh-report .fig svg{width:100%;height:auto;display:block}
+  #sh-report .mono{font-family:var(--font-mono)}
+  #sh-report .sig{margin-top:18px;font-size:11px}
+  #sh-report .sig span{display:inline-block;border-top:1px solid #000;min-width:200px;padding-top:3px;margin-right:36px}
+}
+/* END vendor:shell.css */
+
+/* ---------- Shaft and Beam Workbench ---------- */
+.ldcard .ih .rm{margin-left:auto}
+.ldcard .fld{margin:3px 0}
+.hint{position:absolute;left:10px;top:8px;font-size:13px;background:var(--brass-soft);border:1.5px solid var(--brass);border-radius:3px;padding:4px 9px;pointer-events:none}
+.stationbar{display:grid;grid-template-columns:auto 1fr;gap:4px 10px;align-items:center;margin-top:8px}
+.stationbar label{font-size:13px;color:var(--ink-soft)}
+.stationbar input[type=range]{width:100%;accent-color:var(--dykem)}
+.drawcard svg .ldh{cursor:ew-resize}
+.drawcard.placing svg{cursor:crosshair}
+.drawcard svg .diag{cursor:pointer}
+.imp-table input{width:80px;text-align:right}
+</style>
+</head>
+<body>
+<noscript>The Shaft and Beam Workbench needs JavaScript turned on.</noscript>
+<script>
+/* BEGIN vendor:prediction-log.js */
+// ecosystem/prediction-log.js v1.0.0
+// Prediction Log record format (spec 07 Part A). Pure functions, no DOM.
+// Every tool writes records through this module so the Collector can merge them.
+const PredictionLog = (function () {
+  'use strict';
+  const SCHEMA = 'prediction-log';
+  const SCHEMA_VERSION = 1;
+  const FIELDS = ['schema', 'schemaVersion', 'tool', 'toolVersion', 'student', 'team', 'classPeriod',
+    'problemId', 'quantity', 'unit', 'predicted', 'model', 'measured', 'pctPredVsModel',
+    'pctMeasVsModel', 'attempt', 'timestamp', 'inputs', 'note'];
+  const NUMERIC = ['predicted', 'model', 'measured', 'pctPredVsModel', 'pctMeasVsModel'];
+  const NEWER_WARNING = 'made by a newer tool version; some fields may be ignored';
+
+  const isNum = v => typeof v === 'number' && isFinite(v);
+
+  // (value − reference) ÷ reference × 100; null when either is missing or the reference is 0 (00 §3).
+  function pctDiff(value, reference) {
+    if (!isNum(value) || !isNum(reference) || reference === 0) return null;
+    return (value - reference) / reference * 100;
+  }
+
+  // ISO 8601 local time with offset, e.g. 2026-09-27T14:03:09-05:00.
+  function isoLocal(date) {
+    const d = date || new Date();
+    const p = n => String(Math.abs(Math.trunc(n))).padStart(2, '0');
+    const off = -d.getTimezoneOffset();
+    return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()) + 'T' + p(d.getHours()) + ':' +
+      p(d.getMinutes()) + ':' + p(d.getSeconds()) + (off >= 0 ? '+' : '-') + p(off / 60) + ':' + p(off % 60);
+  }
+
+  // Short stable hash (FNV-1a, 32-bit) for sandbox problem IDs.
+  function shortHash(obj) {
+    const s = typeof obj === 'string' ? obj : stableStringify(obj);
+    let h = 0x811c9dc5;
+    for (let i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+    return h.toString(16).padStart(8, '0').slice(0, 6);
+  }
+  function stableStringify(v) {
+    if (Array.isArray(v)) return '[' + v.map(stableStringify).join(',') + ']';
+    if (v && typeof v === 'object') return '{' + Object.keys(v).sort().map(k => JSON.stringify(k) + ':' + stableStringify(v[k])).join(',') + '}';
+    return JSON.stringify(v);
+  }
+  const sandboxProblemId = inputs => 'sandbox-' + shortHash(inputs);
+
+  // Attempt number for the next record: one more than the highest so far for
+  // this student, problem and quantity.
+  function nextAttempt(records, student, problemId, quantity) {
+    let max = 0;
+    for (const r of records) {
+      if (r.student === student && r.problemId === problemId && r.quantity === quantity && r.attempt > max) max = r.attempt;
+    }
+    return max + 1;
+  }
+
+  function makeRecord(o) {
+    const model = isNum(o.model) ? o.model : null;
+    const measured = isNum(o.measured) ? o.measured : null;
+    const rec = {
+      schema: SCHEMA, schemaVersion: SCHEMA_VERSION,
+      tool: String(o.tool || ''), toolVersion: String(o.toolVersion || ''),
+      student: (o.student || '').trim() || 'unnamed',
+      team: o.team || '', classPeriod: o.classPeriod || '',
+      problemId: String(o.problemId || 'sandbox'),
+      quantity: String(o.quantity || ''), unit: o.unit == null ? '' : String(o.unit),
+      predicted: o.predicted, model, measured,
+      pctPredVsModel: pctDiff(o.predicted, model),
+      pctMeasVsModel: pctDiff(measured, model),
+      attempt: o.attempt || 1,
+      timestamp: o.timestamp || isoLocal(),
+      inputs: o.inputs || { values: {}, units: {} },
+      note: o.note || '',
+    };
+    return rec;
+  }
+
+  // Update measured value and/or note after the fact; keeps the derived percent in step.
+  function annotate(rec, { measured, note } = {}) {
+    const out = Object.assign({}, rec);
+    if (measured !== undefined) { out.measured = isNum(measured) ? measured : null; out.pctMeasVsModel = pctDiff(out.measured, out.model); }
+    if (note !== undefined) out.note = String(note);
+    return out;
+  }
+
+  /* ---------------------------------------------------------------- JSON */
+  function toJSON(records) {
+    return { schema: SCHEMA, schemaVersion: SCHEMA_VERSION, records: records.map(r => Object.assign({}, r)) };
+  }
+
+  /* ---------------------------------------------------------------- CSV (RFC 4180) */
+  function csvCell(v) {
+    if (v === null || v === undefined) return '';
+    const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
+    return /[",\r\n]/.test(s) ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+  function toCSV(records) {
+    const lines = [FIELDS.join(',')];
+    for (const r of records) lines.push(FIELDS.map(f => csvCell(r[f])).join(','));
+    return '﻿' + lines.join('\r\n') + '\r\n';
+  }
+  function parseCSVRows(text) {
+    const rows = []; let row = [], cell = '', i = 0, q = false;
+    if (text.charCodeAt(0) === 0xFEFF) i = 1;
+    for (; i < text.length; i++) {
+      const c = text[i];
+      if (q) {
+        if (c === '"') { if (text[i + 1] === '"') { cell += '"'; i++; } else q = false; }
+        else cell += c;
+      } else if (c === '"') q = true;
+      else if (c === ',') { row.push(cell); cell = ''; }
+      else if (c === '\n' || c === '\r') {
+        if (c === '\r' && text[i + 1] === '\n') i++;
+        row.push(cell); rows.push(row); row = []; cell = '';
+      } else cell += c;
+    }
+    if (q) throw new Error('a quoted cell is not closed');
+    if (cell !== '' || row.length) { row.push(cell); rows.push(row); }
+    return rows.filter(r => !(r.length === 1 && r[0] === ''));
+  }
+  function fromCSV(text) {
+    const rows = parseCSVRows(text);
+    if (!rows.length) throw new Error('the file is empty');
+    const head = rows[0].map(h => h.trim());
+    for (const need of ['student', 'problemId', 'quantity', 'predicted']) {
+      if (head.indexOf(need) < 0) throw new Error('the header row has no "' + need + '" column');
+    }
+    const warnings = [];
+    const records = rows.slice(1).map(cells => {
+      const o = {};
+      head.forEach((h, k) => { o[h] = cells[k] === undefined ? '' : cells[k]; });
+      return normalize(o, warnings);
+    });
+    return { records, warnings: dedupeStrings(warnings) };
+  }
+
+  /* ---------------------------------------------------------------- normalize (either file form) */
+  function toNumOrNull(v) {
+    if (v === null || v === undefined || v === '') return null;
+    const n = typeof v === 'number' ? v : Number(String(v).replace(/,/g, ''));
+    return isFinite(n) ? n : null;
+  }
+  function normalize(o, warnings) {
+    const ver = toNumOrNull(o.schemaVersion);
+    if (ver !== null && ver > SCHEMA_VERSION) warnings.push(NEWER_WARNING);
+    const r = {};
+    r.schema = SCHEMA; r.schemaVersion = SCHEMA_VERSION;
+    for (const f of ['tool', 'toolVersion', 'student', 'team', 'classPeriod', 'problemId', 'quantity', 'unit', 'timestamp', 'note']) {
+      r[f] = o[f] == null ? '' : String(o[f]);
+    }
+    if (!r.student) r.student = 'unnamed';
+    for (const f of NUMERIC) r[f] = toNumOrNull(o[f]);
+    r.attempt = Math.max(1, Math.round(toNumOrNull(o.attempt) || 1));
+    let inputs = o.inputs;
+    if (typeof inputs === 'string') { try { inputs = inputs ? JSON.parse(inputs) : {}; } catch (e) { inputs = {}; warnings.push('some input snapshots could not be read'); } }
+    r.inputs = inputs && typeof inputs === 'object' ? inputs : {};
+    // Derived fields are recomputed so a hand-edited spreadsheet stays consistent.
+    r.pctPredVsModel = pctDiff(r.predicted, r.model);
+    r.pctMeasVsModel = pctDiff(r.measured, r.model);
+    return r;
+  }
+  function fromJSON(text) {
+    let data;
+    try { data = typeof text === 'string' ? JSON.parse(text) : text; }
+    catch (e) { throw new Error('this is not valid JSON (' + e.message + ')'); }
+    const warnings = [];
+    let list;
+    if (Array.isArray(data)) list = data;
+    else if (data && Array.isArray(data.records)) {
+      if (data.schema && data.schema !== SCHEMA) throw new Error('this is a "' + data.schema + '" file, not a prediction log');
+      if (toNumOrNull(data.schemaVersion) > SCHEMA_VERSION) warnings.push(NEWER_WARNING);
+      list = data.records;
+    } else throw new Error('no "records" list was found');
+    return { records: list.map(o => normalize(o || {}, warnings)), warnings: dedupeStrings(warnings) };
+  }
+  // Pick the reader from the file name or content.
+  function parseFile(name, text) {
+    const t = String(text).replace(/^﻿/, '').trimStart();
+    if (/\.json$/i.test(name) || t[0] === '{' || t[0] === '[') return fromJSON(t);
+    return fromCSV(String(text));
+  }
+
+  const dupKey = r => [r.student, r.tool, r.problemId, r.quantity, r.attempt, r.timestamp].join('\u0001');
+  function dedupe(records) {
+    const seen = new Set(), out = [];
+    for (const r of records) { const k = dupKey(r); if (!seen.has(k)) { seen.add(k); out.push(r); } }
+    return { records: out, removed: records.length - out.length };
+  }
+
+  // One tab-separated line (no header) for pasting into a shared spreadsheet.
+  function toTSVRow(r) {
+    return FIELDS.map(f => {
+      const v = r[f];
+      if (v === null || v === undefined) return '';
+      return (typeof v === 'object' ? JSON.stringify(v) : String(v)).replace(/[\t\r\n]+/g, ' ');
+    }).join('\t');
+  }
+
+  function dedupeStrings(a) { return a.filter((s, i) => a.indexOf(s) === i); }
+
+  return {
+    SCHEMA, SCHEMA_VERSION, FIELDS, NEWER_WARNING,
+    pctDiff, isoLocal, shortHash, stableStringify, sandboxProblemId, nextAttempt,
+    makeRecord, annotate, toJSON, toCSV, fromCSV, fromJSON, parseFile, parseCSVRows, dedupe, toTSVRow,
+  };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = PredictionLog;
+/* END vendor:prediction-log.js */
+/* BEGIN vendor:schemas.js */
+// ecosystem/schemas.js v1.0.0
+// Validators and builders for the files the tools exchange (see ecosystem/schemas.md).
+// Each reader returns { value, warnings } or throws an Error whose message is written
+// for students ("This file ..."). Pure functions, no DOM.
+const Schemas = (function () {
+  'use strict';
+  const isNum = v => typeof v === 'number' && isFinite(v);
+  const fail = msg => { throw new Error(msg); };
+
+  function parse(text) {
+    if (text && typeof text === 'object') return text;
+    try { return JSON.parse(String(text).replace(/^﻿/, '')); }
+    catch (e) { fail('This file is not valid JSON, so it could not be read.'); }
+  }
+  function header(obj, schema, current, warnings) {
+    if (!obj || typeof obj !== 'object') fail('This file is empty or not a JSON object.');
+    if (obj.schema !== schema) fail('This is not a ' + schema + ' file' + (obj.schema ? ' (it says "' + obj.schema + '").' : '.'));
+    const v = Number(obj.schemaVersion);
+    if (!isFinite(v) || v < 1) fail('This file has no schema version, so it could not be read.');
+    if (v > current) warnings.push('This file was made by a newer tool version; some fields may be ignored.');
+  }
+  // Angle difference in degrees, 0..180.
+  function angleGap(a, b) { const d = Math.abs(((a - b) % 360 + 540) % 360 - 180); return d; }
+
+  /* ------------------------------------------------------------ shaft-loads (spec 01 §7) */
+  const SHAFT_LOADS_VERSION = 1;
+  function readShaftLoads(text) {
+    const obj = parse(text), warnings = [];
+    header(obj, 'shaft-loads', SHAFT_LOADS_VERSION, warnings);
+    if (!Array.isArray(obj.loads) || obj.loads.length === 0) fail('This shaft-loads file has no loads in it.');
+    const units = obj.units || {};
+    if (units.force && units.force !== 'N') fail('Forces in this file are in ' + units.force + '. Only N is supported.');
+    if (units.torque && units.torque !== 'N·m' && units.torque !== 'N*m' && units.torque !== 'N m') fail('Torques in this file are in ' + units.torque + '. Only N·m is supported.');
+    const loads = obj.loads.map((l, i) => {
+      const n = i + 1;
+      if (!l || typeof l !== 'object') fail('Load ' + n + ' is not readable.');
+      const magnitude = Number(l.magnitude);
+      if (!isFinite(magnitude)) fail('Load ' + n + ' has no magnitude.');
+      if (magnitude < 0) fail('Load ' + n + ' has a negative magnitude. Magnitudes must be positive; the direction goes in angleDeg.');
+      const angleDeg = l.angleDeg == null ? 270 : Number(l.angleDeg);
+      if (!isFinite(angleDeg)) fail('Load ' + n + ' has an angle that is not a number.');
+      const torque = l.torque == null ? null : Number(l.torque);
+      if (torque !== null && !isFinite(torque)) fail('Load ' + n + ' has a torque that is not a number.');
+      return {
+        label: String(l.label || ('Load ' + n)).slice(0, 20), magnitude, angleDeg, torque,
+        plane: l.plane || null, shaft: l.shaft == null ? null : String(l.shaft),
+      };
+    });
+    const angles = loads.map(l => l.angleDeg);
+    let spread = 0;
+    // Spec 01 §5.5: warn when any two loads point more than 5° apart. Version 1
+    // places every imported load by its magnitude, so even opposed loads need a look.
+    for (let i = 0; i < angles.length; i++) for (let j = i + 1; j < angles.length; j++) {
+      spread = Math.max(spread, angleGap(angles[i], angles[j]));
+    }
+    return {
+      value: { source: String(obj.source || 'unknown tool'), loads, notes: Array.isArray(obj.notes) ? obj.notes.map(String) : [] },
+      warnings, planeSpreadDeg: spread, multiPlane: spread > 5,
+    };
+  }
+  function makeShaftLoads(source, loads, notes) {
+    return {
+      schema: 'shaft-loads', schemaVersion: SHAFT_LOADS_VERSION, source,
+      units: { force: 'N', torque: 'N·m' },
+      loads: loads.map(l => {
+        const o = { label: l.label, magnitude: l.magnitude, angleDeg: l.angleDeg };
+        if (isNum(l.torque)) o.torque = l.torque;
+        if (l.plane) o.plane = l.plane;
+        if (l.shaft != null) o.shaft = l.shaft;
+        return o;
+      }),
+      notes: notes || [],
+    };
+  }
+
+  /* ------------------------------------------------------------ drive-request / drive-result (spec 02 §5.5) */
+  const DRIVE_VERSION = 1;
+  function readStages(list, where) {
+    if (list == null) return null;
+    if (!Array.isArray(list) || !list.length) fail(where + ' has an empty stage list.');
+    return list.map((s, i) => {
+      const ratio = Number(s.ratio), efficiency = s.efficiency == null ? 1 : Number(s.efficiency);
+      if (!(ratio > 0)) fail('Stage ' + (i + 1) + ' in ' + where + ' needs a ratio greater than 0.');
+      if (!(efficiency > 0 && efficiency <= 1)) fail('Stage ' + (i + 1) + ' in ' + where + ' needs an efficiency between 0 and 1.');
+      return { ratio, efficiency };
+    });
+  }
+  function readDriveRequest(text) {
+    const obj = parse(text), warnings = [];
+    header(obj, 'drive-request', DRIVE_VERSION, warnings);
+    const loadTorque = Number(obj.loadTorque);
+    if (!isFinite(loadTorque) || loadTorque < 0) fail('This drive request needs a load torque of 0 N·m or more.');
+    const targetSpeed = obj.targetSpeed == null ? null : Number(obj.targetSpeed);
+    if (targetSpeed !== null && !(targetSpeed > 0)) fail('The target speed in this drive request must be greater than 0 rpm.');
+    let motor = null;
+    if (obj.motor) {
+      const m = obj.motor;
+      motor = { label: String(m.label || ''), stallTorque: Number(m.stallTorque), noLoadSpeed: Number(m.noLoadSpeed), count: m.count == null ? 1 : Number(m.count) };
+      if (!(motor.stallTorque > 0) || !(motor.noLoadSpeed > 0)) fail('The motor in this drive request needs a stall torque and no-load speed greater than 0.');
+    }
+    return { value: { source: String(obj.source || 'unknown tool'), loadTorque, targetSpeed, stages: readStages(obj.stages, 'this drive request'), motor, note: obj.note ? String(obj.note) : '' }, warnings };
+  }
+  function makeDriveRequest(source, o) {
+    const r = { schema: 'drive-request', schemaVersion: DRIVE_VERSION, source, units: { torque: 'N·m', speed: 'rpm' }, loadTorque: o.loadTorque };
+    if (isNum(o.targetSpeed)) r.targetSpeed = o.targetSpeed;
+    if (o.stages) r.stages = o.stages.map(s => ({ ratio: s.ratio, efficiency: s.efficiency }));
+    if (o.motor) r.motor = Object.assign({}, o.motor);
+    if (o.note) r.note = o.note;
+    return r;
+  }
+  function makeDriveResult(source, o) {
+    return {
+      schema: 'drive-result', schemaVersion: DRIVE_VERSION, source, units: { torque: 'N·m', speed: 'rpm', power: 'W' },
+      motor: Object.assign({}, o.motor),
+      stages: (o.stages || []).map(s => ({ ratio: s.ratio, efficiency: s.efficiency })),
+      ratio: o.ratio, efficiency: o.efficiency,
+      loadTorque: o.loadTorque, targetSpeed: isNum(o.targetSpeed) ? o.targetSpeed : null,
+      ratioRoots: o.ratioRoots || null,
+      operatingPoint: Object.assign({}, o.operatingPoint),
+      dutyBand: o.dutyBand,
+    };
+  }
+  function readDriveResult(text) {
+    const obj = parse(text), warnings = [];
+    header(obj, 'drive-result', DRIVE_VERSION, warnings);
+    if (!(Number(obj.ratio) > 0)) fail('This drive result has no gear ratio.');
+    if (!obj.operatingPoint || typeof obj.operatingPoint !== 'object') fail('This drive result has no operating point.');
+    return { value: obj, warnings };
+  }
+
+  /* ------------------------------------------------------------ design file envelope (00 §6) */
+  function makeDesignFile(meta, state) {
+    return { tool: meta.tool, toolVersion: meta.toolVersion, schemaVersion: meta.schemaVersion, savedAt: new Date().toISOString(), state };
+  }
+  // opts: { tool, schemaVersion, migrate(fromVersion, state) -> { state, dropped: [..] } }
+  function readDesignFile(text, opts) {
+    const obj = parse(text), warnings = [];
+    if (!obj || typeof obj !== 'object' || !('state' in obj)) {
+      if (obj && obj.schema) fail('This is a ' + obj.schema + ' file, not a saved design. Use the import menu for it.');
+      fail('This is not a saved design file.');
+    }
+    if (obj.tool && opts.tool && obj.tool !== opts.tool) fail('This design was saved from the ' + obj.tool + ', not the ' + opts.tool + '.');
+    const v = Number(obj.schemaVersion) || 1;
+    let state = obj.state;
+    if (v > opts.schemaVersion) warnings.push('This design was saved by a newer version of the tool. Anything this version does not know about was left out.');
+    else if (v < opts.schemaVersion && opts.migrate) {
+      const m = opts.migrate(v, state);
+      state = m.state;
+      if (m.dropped && m.dropped.length) warnings.push('Could not load from the older file: ' + m.dropped.join(', ') + '.');
+    }
+    return { value: { state, savedAt: obj.savedAt || null, toolVersion: obj.toolVersion || '' }, warnings };
+  }
+
+  // Detect which kind of file this is, for tools that accept several on one Load button.
+  function kindOf(text) {
+    let obj; try { obj = parse(text); } catch (e) { return null; }
+    if (obj && obj.schema) return obj.schema;
+    if (obj && 'state' in obj) return 'design';
+    return null;
+  }
+
+  return {
+    SHAFT_LOADS_VERSION, DRIVE_VERSION, angleGap,
+    readShaftLoads, makeShaftLoads, readDriveRequest, makeDriveRequest, readDriveResult, makeDriveResult,
+    makeDesignFile, readDesignFile, kindOf,
+  };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = Schemas;
+/* END vendor:schemas.js */
+/* BEGIN vendor:beam-core.js */
+// ecosystem/beam-core.js v1.0.0
+// Beam and shaft model from spec 01 §3: reactions, shear, bending moment,
+// torque segment, bending and torsional stress in a solid round shaft,
+// Tresca and von Mises safety factors, required diameter, and deflection by
+// double numerical integration. Plain SI in and out (N, m, N·m, Pa); no DOM.
+// Positions x are measured from support A (pin) along the shaft; support B
+// (roller) is at x = L. Loads P are positive downward. Moments are sagging
+// positive. Shared by the Shaft and Beam Workbench, the Conveyor Designer and
+// the Truss Stress Visualizer's Beam mode.
+const BeamCore = (function () {
+  'use strict';
+  const PI = Math.PI;
+  const isNum = v => typeof v === 'number' && isFinite(v);
+
+  /* ------------------------------------------------------------ statics (§3.1) */
+  // Moments about A: R_B = Σ(P·a)/L; vertical balance: R_A = ΣP − R_B. Holds for overhangs.
+  function reactions(L, loads) {
+    let sumP = 0, sumPa = 0;
+    for (const l of loads) { sumP += l.P; sumPa += l.P * l.a; }
+    const RB = sumPa / L;
+    return { RA: sumP - RB, RB, sumP, sumPa };
+  }
+
+  /* ------------------------------------------------------------ shear and moment (§3.2) */
+  // V(x): sum of vertical forces to the left of x (reactions up +, loads down −).
+  // side = 'left' gives the value just left of x, 'right' just right of it.
+  function shearAt(x, L, loads, R, side) {
+    const right = side !== 'left';
+    const past = (s) => right ? s <= x : s < x;
+    let V = 0;
+    if (past(0)) V += R.RA;
+    if (past(L)) V += R.RB;
+    for (const l of loads) if (past(l.a)) V -= l.P;
+    return V;
+  }
+  // M(x): moments about x of the forces to the left of x. Continuous, so no side.
+  function momentAt(x, L, loads, R) {
+    let M = 0;
+    if (x > 0) M += R.RA * x;
+    if (x > L) M += R.RB * (x - L);
+    for (const l of loads) if (l.a < x) M -= l.P * (x - l.a);
+    return M;
+  }
+  function torqueAt(x, tq) {
+    if (!tq || !isNum(tq.T) || tq.T === 0) return 0;
+    const lo = Math.min(tq.from, tq.to), hi = Math.max(tq.from, tq.to);
+    const eps = 1e-12;
+    return (x >= lo - eps && x <= hi + eps) ? tq.T : 0;   // closed interval (ERRATA: SB-12)
+  }
+
+  /* ------------------------------------------------------------ section stresses (§3.4) */
+  // Stresses at one section of a solid round shaft. M, T in N·m, d in m, Sy in Pa.
+  function section(o) {
+    const d = o.d, Kb = o.Kb || 1, Kt = o.Kt || 1, M = Math.abs(o.M || 0), T = Math.abs(o.T || 0);
+    const k = PI * d * d * d;
+    const sigma = 32 * Kb * M / k;
+    const tau = 16 * Kt * T / k;
+    const tauMax = 16 / k * Math.hypot(Kb * M, Kt * T);          // Tresca combined
+    const sigmaVM = Math.sqrt(sigma * sigma + 3 * tau * tau);      // von Mises
+    const rule = o.rule === 'vonMises' ? 'vonMises' : 'tresca';
+    let n = null;
+    if (isNum(o.Sy)) {
+      if (rule === 'tresca') n = tauMax > 0 ? o.Sy / (2 * tauMax) : Infinity;
+      else n = sigmaVM > 0 ? o.Sy / sigmaVM : Infinity;
+    }
+    const out = { sigma, tau, tauMax, sigmaVM, n, rule };
+    if (isNum(o.nTarget) && isNum(o.Sy)) out.dReq = requiredDiameter({ M, T, Sy: o.Sy, n: o.nTarget, Kb, Kt, rule });
+    return out;
+  }
+  // Required diameter for a target safety factor (§3.4). Returns null when there is no load.
+  function requiredDiameter(o) {
+    const Kb = o.Kb || 1, Kt = o.Kt || 1, M = Math.abs(o.M), T = Math.abs(o.T);
+    if (o.rule === 'vonMises') {
+      const c = Math.sqrt((Kb * M) ** 2 + 0.75 * (Kt * T) ** 2);
+      return c > 0 ? Math.cbrt((32 * o.n / (PI * o.Sy)) * c) : null;
+    }
+    const c = Math.hypot(Kb * M, Kt * T);
+    return c > 0 ? Math.cbrt(16 * c / (PI * o.Sy / (2 * o.n))) : null;
+  }
+
+  /* ------------------------------------------------------------ whole-shaft analysis */
+  // inp: { L, overhangLeft, overhangRight, loads: [{P, a, label}], mode: 'beam'|'shaft',
+  //        torque: {T, from, to} | null, d, Sy, E, Kb, Kt, nTarget, rule, stations }
+  function analyze(inp) {
+    const L = inp.L, oL = inp.overhangLeft || 0, oR = inp.overhangRight || 0;
+    const x0 = -oL, x1 = L + oR;
+    const loads = (inp.loads || []).filter(l => isNum(l.P) && isNum(l.a));
+    const shaft = inp.mode !== 'beam';
+    const tq = shaft && inp.torque && isNum(inp.torque.T) ? inp.torque : null;
+    const R = reactions(L, loads);
+
+    // Stations: ≥400 evenly spaced over the modeled length, plus every load, support and torque end.
+    const nSt = Math.max(400, inp.stations || 400);
+    const special = [x0, 0, L, x1].concat(loads.map(l => l.a));
+    if (tq) special.push(tq.from, tq.to);
+    const set = new Set();
+    for (let i = 0; i <= nSt; i++) set.add(round12(x0 + (x1 - x0) * i / nSt));
+    special.forEach(s => { if (s >= x0 - 1e-12 && s <= x1 + 1e-12) set.add(round12(s)); });
+    const xs = Array.from(set).sort((a, b) => a - b);
+    const jumps = new Set([0, L].concat(loads.map(l => l.a)).map(round12));
+
+    const V = [], M = [], T = [];
+    for (const x of xs) { V.push(shearAt(x, L, loads, R, 'right')); M.push(momentAt(x, L, loads, R)); T.push(tq ? torqueAt(x, tq) : 0); }
+
+    // Shear diagram polyline with both sides at each jump (for drawing and labels).
+    const shearPts = [];
+    xs.forEach((x, i) => {
+      if (jumps.has(x) && x > x0 && x < x1) shearPts.push({ x, V: shearAt(x, L, loads, R, 'left') });
+      shearPts.push({ x, V: V[i] });
+    });
+
+    // |M|max and its station.
+    let iM = 0;
+    for (let i = 1; i < xs.length; i++) if (Math.abs(M[i]) > Math.abs(M[iM]) + 1e-12) iM = i;
+    const Mmax = { M: M[iM], x: xs[iM] };
+
+    // Stress, safety factor and required diameter at every station (§3.4: scan all stations).
+    const rule = inp.rule === 'vonMises' ? 'vonMises' : 'tresca';
+    const haveMat = isNum(inp.d) && inp.d > 0 && isNum(inp.Sy) && inp.Sy > 0;
+    const nArr = [];
+    let crit = null, dReq = null, dReqX = null;
+    if (haveMat) {
+      xs.forEach((x, i) => {
+        const s = section({ M: M[i], T: T[i], d: inp.d, Sy: inp.Sy, Kb: inp.Kb, Kt: inp.Kt, rule });
+        nArr.push(s.n);
+        if (crit === null || s.n < crit.n - 1e-12) crit = Object.assign({ x, i, M: M[i], T: T[i] }, s);
+        if (isNum(inp.nTarget) && inp.nTarget > 0) {
+          const dr = requiredDiameter({ M: M[i], T: T[i], Sy: inp.Sy, n: inp.nTarget, Kb: inp.Kb, Kt: inp.Kt, rule });
+          if (dr !== null && (dReq === null || dr > dReq + 1e-15)) { dReq = dr; dReqX = x; }
+        }
+      });
+    }
+    const loaded = crit !== null && isFinite(crit.n);
+    const result = {
+      L, x0, x1, R, RA: R.RA, RB: R.RB, xs, V, M, T, shearPts, Mmax, nArr, rule, mode: shaft ? 'shaft' : 'beam',
+      torque: tq ? Math.abs(tq.T) : 0,
+      critical: loaded ? crit : null,
+      n: loaded ? crit.n : null,
+      nReason: !haveMat ? 'enter a diameter and yield strength' : loaded ? null : 'no load',
+      pass: loaded && isNum(inp.nTarget) ? crit.n >= inp.nTarget : null,
+      dReq, dReqX,
+    };
+    if (isNum(inp.E) && inp.E > 0 && isNum(inp.d) && inp.d > 0) result.deflection = deflection(inp, loads, R);
+    return result;
+  }
+
+  /* ------------------------------------------------------------ deflection (§3.5) */
+  // y'' = M/(E I), integrated twice on a fine grid, with y = 0 at both supports.
+  // Negative y is downward. I = π d⁴ / 64.
+  function deflection(inp, loads, R) {
+    const L = inp.L, x0 = -(inp.overhangLeft || 0), x1 = L + (inp.overhangRight || 0);
+    const I = PI * Math.pow(inp.d, 4) / 64, EI = inp.E * I;
+    const knots = Array.from(new Set([x0, 0, L, x1].concat(loads.map(l => l.a)).map(round12))).filter(x => x >= x0 && x <= x1).sort((a, b) => a - b);
+    const xs = [x0];
+    const per = 4000 / Math.max(1e-9, x1 - x0);
+    for (let k = 1; k < knots.length; k++) {
+      const a = knots[k - 1], b = knots[k], n = Math.max(2, Math.ceil((b - a) * per));
+      for (let j = 1; j <= n; j++) xs.push(j === n ? b : a + (b - a) * j / n);
+    }
+    const curv = xs.map(x => momentAt(x, L, loads, R) / EI);
+    const slope = [0], Y = [0];
+    for (let i = 1; i < xs.length; i++) {
+      const h = xs[i] - xs[i - 1];
+      slope.push(slope[i - 1] + 0.5 * h * (curv[i] + curv[i - 1]));
+      // Exact for a linear curvature over the step (M is piecewise linear between loads).
+      Y.push(Y[i - 1] + h * slope[i - 1] + h * h * (2 * curv[i - 1] + curv[i]) / 6);
+    }
+    const at = x => { const i = xs.indexOf(x); return Y[i]; };
+    const yA = at(0), yB = at(round12(L));
+    // Add the straight line that brings y back to 0 at A (x = 0) and B (x = L).
+    const c1 = (yB - yA) / L, c0 = -yA;
+    const y = xs.map((x, i) => Y[i] + c0 - c1 * x);
+    let k = 0;
+    for (let i = 1; i < y.length; i++) if (Math.abs(y[i]) > Math.abs(y[k])) k = i;
+    return { xs, y, I, EI, max: Math.abs(y[k]), maxSigned: y[k], x: xs[k] };
+  }
+
+  function round12(x) { return Math.round(x * 1e12) / 1e12; }
+
+  // Closed form for a single centered load (Optimal Beam), for help and tests.
+  const centeredDeflection = (P, L, E, I) => P * L * L * L / (48 * E * I);
+
+  return { reactions, shearAt, momentAt, torqueAt, section, requiredDiameter, analyze, deflection, centeredDeflection };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = BeamCore;
+/* END vendor:beam-core.js */
+/* BEGIN vendor:shell.js */
+// ecosystem/shell/shell.js v1.0.0
+// Shared tool frame for the Engineered by the Numbers tools (spec 00 §2–8):
+// header, footer, help, themes, small-screen notice, predict-first, show the
+// working, field validation, save/load, PNG export, printable report, the
+// prediction log store, settings and Clear my data. A tool supplies its
+// inputs, calculation, drawing and readouts through the config passed to
+// Shell.create(). Needs PredictionLog and Schemas defined first.
+const Shell = (function () {
+  'use strict';
+  const req = (a, b) => { try { return require(a); } catch (e) { return require(b); } };
+  const PL = typeof PredictionLog !== 'undefined' ? PredictionLog : req('./prediction-log.js', '../prediction-log.js');
+  const SC = typeof Schemas !== 'undefined' ? Schemas : req('./schemas.js', '../schemas.js');
+
+  /* =================================================================
+     PURE HELPERS (unit-tested in Node)
+     ================================================================= */
+  const isNum = v => typeof v === 'number' && isFinite(v);
+  const SUP = { '-': '⁻', '0': '⁰', '1': '¹', '2': '²', '3': '³', '4': '⁴', '5': '⁵', '6': '⁶', '7': '⁷', '8': '⁸', '9': '⁹' };
+
+  // Significant-figure display (00 §3). Keeps trailing zeros ("4.10"), groups
+  // thousands, uses a true minus sign, never prints NaN or Infinity.
+  function fmtSig(v, sig) {
+    sig = sig || 3;
+    if (!isNum(v)) return '—';
+    if (v === 0 || Object.is(v, -0)) return '0';
+    const a = Math.abs(v);
+    let s;
+    if (a >= 1e7 || a < 1e-4) {
+      const [m, e] = v.toExponential(sig - 1).split('e');
+      s = m + ' × 10' + String(Number(e)).split('').map(c => SUP[c] || c).join('');
+    } else {
+      // Round first so 99.96 at 3 s.f. becomes 100 (not "100.0").
+      const r = Number(v.toPrecision(sig));
+      const digitsBefore = Math.floor(Math.log10(Math.abs(r))) + 1;
+      const decimals = Math.max(0, sig - digitsBefore);
+      s = Math.abs(r).toLocaleString('en-US', { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+      if (r < 0) s = '-' + s;
+    }
+    return s.replace(/^-/, '−');
+  }
+  // Plain number for an input box: up to 6 significant figures, no grouping.
+  function fmtInput(v) { return isNum(v) ? String(Number(v.toPrecision(6))) : ''; }
+  function fmtPct(p, sig) {
+    if (!isNum(p)) return 'not defined';
+    return (p > 0 ? '+' : '') + fmtSig(p, sig) + '%';
+  }
+
+  // Accepts "1,000", "1 000", "−3", ".5". Returns NaN for anything else.
+  function parseNumber(str) {
+    if (typeof str === 'number') return str;
+    const s = String(str == null ? '' : str).trim().replace(/[−–]/g, '-').replace(/(\d)[,\s](?=\d{3}(\D|$))/g, '$1');
+    if (!/^[-+]?(\d+\.?\d*|\.\d+)(e[-+]?\d+)?$/i.test(s)) return NaN;
+    return Number(s);
+  }
+
+  // Field validation (00 §8). spec: { name, unit, min, max, gt (exclusive lower bound),
+  // integer, check(v) -> message|null }. Returns { value, error }.
+  function validateNumber(raw, spec) {
+    const name = spec.name || 'This value';
+    const u = spec.unit ? ' ' + spec.unit : '';
+    if (String(raw == null ? '' : raw).trim() === '') return { value: NaN, error: 'Enter a value for ' + lc(name) + '.' };
+    const v = parseNumber(raw);
+    if (!isNum(v)) return { value: NaN, error: name + ' must be a number.' };
+    if (spec.integer && Math.round(v) !== v) return { value: v, error: name + ' must be a whole number.' };
+    if (spec.gt !== undefined && !(v > spec.gt)) return { value: v, error: name + ' must be greater than ' + spec.gt + u + '.' };
+    if (spec.min !== undefined && spec.max !== undefined && (v < spec.min || v > spec.max)) return { value: v, error: name + ' must be between ' + fmtBound(spec.min) + ' and ' + fmtBound(spec.max) + u + '.' };
+    if (spec.min !== undefined && v < spec.min) return { value: v, error: name + ' must be at least ' + fmtBound(spec.min) + u + '.' };
+    if (spec.max !== undefined && v > spec.max) return { value: v, error: name + ' must be at most ' + fmtBound(spec.max) + u + '.' };
+    if (spec.check) { const m = spec.check(v); if (m) return { value: v, error: m }; }
+    return { value: v, error: null };
+  }
+  const fmtBound = v => Math.abs(v) >= 10000 ? v.toLocaleString('en-US') : String(v);
+  const lc = s => s.charAt(0).toLowerCase() + s.slice(1);
+
+  // 00 §6: <name>_<tool>_<challenge or sandbox>_<YYYY-MM-DD>.<ext>
+  function safePart(s) { return String(s || '').trim().replace(/[^A-Za-z0-9._-]+/g, '-').replace(/-+/g, '-').replace(/^[-.]+|[-.]+$/g, ''); }
+  function exportName(o) {
+    const base = [safePart(o.student) || 'unnamed', safePart(o.tool), safePart(o.context) || 'sandbox', o.dateISO].join('_');
+    return o.ext ? base + '.' + o.ext : base;
+  }
+  function localDateISO(d) {
+    d = d || new Date();
+    return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  }
+
+  // 00 §4.5 default bands: within 1% "Match", within 5% "Close".
+  function verdictFor(pct, tol) {
+    tol = tol || { match: 1, close: 5 };
+    if (!isNum(pct)) return null;
+    const a = Math.abs(pct);
+    return a <= tol.match ? 'match' : a <= tol.close ? 'close' : 'off';
+  }
+  function predictionMessage(pred, model, unit, sig, reason) {
+    const u = unit ? ' ' + unit : '';
+    if (!isNum(model)) return 'You predicted ' + fmtSig(pred, sig) + u + '. The model value is not defined' + (reason ? ': ' + reason : '') + '.';
+    const pct = PL.pctDiff(pred, model);
+    return 'You predicted ' + fmtSig(pred, sig) + u + '. The model gives ' + fmtSig(model, sig) + u +
+      (pct === null ? ' (difference not defined: the model value is 0).' : ' (' + fmtPct(pct, sig) + ' difference).');
+  }
+  const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+  const util = { fmtSig, fmtInput, fmtPct, parseNumber, validateNumber, exportName, safePart, localDateISO, verdictFor, predictionMessage, esc };
+
+  /* =================================================================
+     BROWSER FRAME
+     ================================================================= */
+  const FEEDBACK = 'billvanloo.tech+feedback@gmail.com';
+
+  function store(prefix) {
+    return {
+      get(k, dflt) { try { const s = localStorage.getItem(prefix + k); return s == null ? dflt : JSON.parse(s); } catch (e) { return dflt; } },
+      set(k, v) { try { localStorage.setItem(prefix + k, JSON.stringify(v)); } catch (e) { /* storage full or blocked */ } },
+      del(k) { try { localStorage.removeItem(prefix + k); } catch (e) { } },
+      clearAll() { try { Object.keys(localStorage).filter(k => k.indexOf(prefix) === 0).forEach(k => localStorage.removeItem(k)); } catch (e) { } },
+    };
+  }
+  function h(tag, attrs, html) {
+    const el = document.createElement(tag);
+    if (attrs) for (const k in attrs) { if (attrs[k] !== null && attrs[k] !== undefined && attrs[k] !== false) el.setAttribute(k, attrs[k] === true ? '' : attrs[k]); }
+    if (html !== undefined) el.innerHTML = html;
+    return el;
+  }
+  function download(filename, data, type) {
+    const blob = data instanceof Blob ? data : new Blob([data], { type: type || 'application/octet-stream' });
+    const url = URL.createObjectURL(blob);
+    const a = h('a', { href: url, download: filename });
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+  }
+  async function copyText(text) {
+    try { await navigator.clipboard.writeText(text); return true; } catch (e) {
+      const ta = h('textarea'); ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+      document.body.appendChild(ta); ta.select();
+      let ok = false; try { ok = document.execCommand('copy'); } catch (e2) { }
+      ta.remove(); return ok;
+    }
+  }
+
+  function create(cfg) {
+    const S = store('ebtn:' + cfg.slug + ':');
+    const G = store('ebtn-');                       // shared across tools on one site: name, theme
+    const app = {
+      cfg, util, PL, SC,
+      state: null, el: {},
+      settings: Object.assign({ sig: 3, team: '', classPeriod: '', predictFirst: false }, cfg.defaultSettings || {}, S.get('settings', {})),
+      pf: { revealed: false, fields: {}, messages: [] },
+      invalid: {}, fields: [], log: S.get('log', []),
+      sessionStart: Date.now(), working: [],
+    };
+
+    /* ---------------- state ---------------- */
+    const saved = S.get('state', null);
+    app.state = cfg.defaultState();
+    if (saved && saved.schemaVersion === cfg.schemaVersion && saved.state) {
+      try { app.state = Object.assign(cfg.defaultState(), saved.state); } catch (e) { app.state = cfg.defaultState(); }
+    }
+
+    /* ---------------- skeleton ---------------- */
+    const repoUrl = 'https://github.com/billvanloo/' + cfg.repo;
+    const mail = kind => 'mailto:' + FEEDBACK + '?subject=' + encodeURIComponent('[' + cfg.repo + '] ' + kind);
+    document.body.innerHTML = '';
+    const header = h('header', { class: 'sh-header' },
+      '<div class="titleblock"><span class="t1">' + esc(cfg.tool) + '</span><span class="t2">' + esc(cfg.subtitle || '') + '</span></div>' +
+      '<div id="shModes"></div><div class="spacer"></div>' +
+      '<div class="namewrap"><label for="shName">Name</label><input id="shName" maxlength="40" placeholder="Your name" autocomplete="name"></div>' +
+      '<div class="hbtns">' +
+      '<button id="shPredict" aria-pressed="false" title="Hide results until you enter and check a prediction">Predict first</button>' +
+      '<button id="shPng" title="Download a PNG of the drawing">Export image</button>' +
+      '<button id="shReport" title="Printable report (print to PDF)">Report</button>' +
+      '<button id="shSave" title="Save your design as a file">Save</button>' +
+      '<button id="shLoad" title="Open a saved design or an import file">Load</button>' +
+      '<button id="shLog" title="Your prediction log">Log</button>' +
+      '<button id="shSettings" aria-label="Settings" title="Settings">⚙</button>' +
+      '<button id="shTheme" aria-pressed="false" title="Switch light or dark theme">theme</button>' +
+      '<button id="shHelp" aria-label="Help" title="How to use this tool (?)">?</button>' +
+      '</div><input type="file" id="shFile" accept=".json,.csv,application/json,text/csv" hidden>');
+    const small = h('div', { id: 'shSmall', class: 'sh-small', role: 'note' },
+      '<span>This tool needs a larger screen, at least 1024 px wide, for full use. The readouts still work here.</span><button type="button">Dismiss</button>');
+    const main = h('main', { class: 'sh-main' },
+      '<section id="shInputs" class="sh-col sh-inputs" aria-label="Inputs"></section>' +
+      '<section id="shStage" class="sh-col sh-stage" aria-label="Drawing"></section>' +
+      '<section id="shResults" class="sh-col sh-results" aria-label="Results">' +
+      '<div id="shResultsBody"></div>' +
+      '<div id="shPfBox" class="pfbox" hidden></div>' +
+      '<details id="shWorking" class="working"><summary>Show the working</summary><div id="shWorkingBody"></div></details>' +
+      '</section>');
+    const footer = h('footer', { class: 'sh-footer' },
+      '<span class="foot-by">Designed by <a href="https://billvanloo.com" target="_blank" rel="noopener"><strong>Bill Van Loo</strong></a></span>' +
+      '<span class="foot-ai">Developed using Claude — please don\'t use this tool if you\'re uncomfortable using tools built with AI assistance.</span>' +
+      '<span class="foot-spacer"></span>' +
+      '<a href="' + mail('Bug report') + '">Report a bug</a>' +
+      '<a href="' + mail('Feature request') + '">Request a feature</a>' +
+      '<a href="https://ko-fi.com/billvanloo" target="_blank" rel="noopener">Support on Ko-fi</a>' +
+      '<a href="' + repoUrl + '/blob/main/LICENSE" target="_blank" rel="noopener">MIT License</a>' +
+      '<a href="' + repoUrl + '" target="_blank" rel="noopener">View source</a>');
+    const live = h('div', { id: 'shLive', class: 'sr-only', role: 'status', 'aria-live': 'polite' });
+    const desc = h('div', { id: 'shDesc', class: 'sr-only', 'aria-live': 'polite' });
+    const toastEl = h('div', { id: 'shToast', class: 'sh-toast', role: 'status', 'aria-live': 'polite' });
+    const report = h('div', { id: 'sh-report' });
+    [header, small, main, footer, live, desc, toastEl, report].forEach(e => document.body.appendChild(e));
+    const $ = id => document.getElementById(id);
+    app.el = { inputs: $('shInputs'), stage: $('shStage'), results: $('shResultsBody'), pf: $('shPfBox'), working: $('shWorkingBody'), workingBox: $('shWorking') };
+
+    /* ---------------- dialogs ---------------- */
+    function dialog(id, title) {
+      const d = h('dialog', { id, class: 'sh-dlg', 'aria-labelledby': id + 'T' },
+        '<div class="dlg-h"><h2 id="' + id + 'T">' + esc(title) + '</h2><button class="btn small" data-close>Close</button></div><div class="dlg-b"></div>');
+      d.querySelector('[data-close]').addEventListener('click', () => d.close());
+      d.addEventListener('click', e => { if (e.target === d) d.close(); });
+      document.body.appendChild(d);
+      return { dlg: d, body: d.querySelector('.dlg-b') };
+    }
+    const helpD = dialog('shHelpDlg', 'How to use the ' + cfg.tool);
+    const logD = dialog('shLogDlg', 'Prediction log');
+    const setD = dialog('shSettingsDlg', 'Settings');
+
+    /* ---------------- toast, live regions ---------------- */
+    let toastT = 0;
+    app.toast = (msg, ms) => {
+      toastEl.textContent = msg; toastEl.classList.add('on');
+      clearTimeout(toastT); toastT = setTimeout(() => toastEl.classList.remove('on'), ms || 3500);
+    };
+    app.announce = msg => { live.textContent = ''; setTimeout(() => { live.textContent = msg; }, 30); };
+    let descT = 0, lastDesc = '';
+    app.describe = text => {
+      if (text === lastDesc) return;
+      lastDesc = text; clearTimeout(descT);
+      descT = setTimeout(() => { desc.textContent = text; }, 450);
+    };
+
+    /* ---------------- theme ---------------- */
+    const curTheme = () => document.documentElement.getAttribute('data-theme') === 'dark' ? 'dark' : 'light';
+    function syncTheme() {
+      const t = curTheme();
+      $('shTheme').textContent = t === 'light' ? '☾ Dark' : '☀ Light';
+      $('shTheme').setAttribute('aria-pressed', t === 'dark' ? 'true' : 'false');
+    }
+    $('shTheme').addEventListener('click', () => {
+      const next = curTheme() === 'light' ? 'dark' : 'light';
+      document.documentElement.setAttribute('data-theme', next);
+      G.set('theme', next);
+      syncTheme(); render();
+    });
+    // Palette for drawings, read from the CSS tokens.
+    const PAL_KEYS = ['paper', 'grid-minor', 'grid-major', 'ink', 'ink-soft', 'line', 'steel', 'steel-edge', 'dykem', 'dykem-soft', 'brass', 'brass-ink', 'pass', 'fail', 'warn', 'pos-fill', 'neg-fill', 'field', 'panel', 'badge-text'];
+    app.pal = () => {
+      const cs = getComputedStyle(document.documentElement), p = {};
+      PAL_KEYS.forEach(k => { p[k.replace(/-(\w)/g, (m, c) => c.toUpperCase())] = cs.getPropertyValue('--' + k).trim(); });
+      p.fontUi = cs.getPropertyValue('--font-ui').trim(); p.fontMono = cs.getPropertyValue('--font-mono').trim();
+      return p;
+    };
+    // Exports and reports are always ink on paper (00 §2).
+    app.withLight = fn => {
+      const root = document.documentElement, prev = root.getAttribute('data-theme');
+      root.setAttribute('data-theme', 'light');
+      try { return fn(); } finally { root.setAttribute('data-theme', prev || 'light'); }
+    };
+
+    /* ---------------- formatting ---------------- */
+    app.fmt = v => fmtSig(v, app.settings.sig);
+    app.fmtU = (v, unit) => isNum(v) ? fmtSig(v, app.settings.sig) + (unit ? ' ' + unit : '') : '—';
+
+    /* ---------------- name ---------------- */
+    const nameEl = $('shName');
+    nameEl.value = G.get('name', '') || '';
+    nameEl.addEventListener('input', () => G.set('name', nameEl.value));
+    app.student = () => nameEl.value.trim();
+
+    /* ---------------- small screen ---------------- */
+    if (G.get('smallDismissed', false)) small.hidden = true;
+    small.querySelector('button').addEventListener('click', () => { small.hidden = true; G.set('smallDismissed', true); });
+
+    /* ---------------- modes ---------------- */
+    if (cfg.modes) {
+      const box = $('shModes');
+      box.className = 'modes'; box.setAttribute('role', 'group'); box.setAttribute('aria-label', cfg.modes.label || 'Mode');
+      cfg.modes.options.forEach(o => {
+        const b = h('button', { type: 'button', 'data-mode': o.id, 'aria-pressed': 'false' }, esc(o.label));
+        b.addEventListener('click', () => { cfg.modes.set(app, o.id); app.changed(); });
+        box.appendChild(b);
+      });
+    }
+    function syncModes() {
+      if (!cfg.modes) return;
+      const cur = cfg.modes.get(app);
+      document.querySelectorAll('#shModes button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === cur ? 'true' : 'false'));
+    }
+
+    /* =================================================================
+       FIELDS
+       ================================================================= */
+    // Numeric input row. o: { id, label, unit, name, get(app), set(app, v), min, max, gt, integer,
+    // check(v, app), step, help, parent }
+    app.numField = (parent, o) => {
+      const row = h('div', { class: 'fld' });
+      const errId = o.id + 'Err';
+      row.innerHTML = '<label for="' + o.id + '">' + o.label + '</label>' +
+        '<span class="ctl"><input type="text" inputmode="decimal" id="' + o.id + '" aria-describedby="' + errId + '" autocomplete="off">' +
+        (o.unit ? '<span class="unit">' + esc(o.unit) + '</span>' : '') + '</span>' +
+        '<div class="err" id="' + errId + '" role="alert"></div>';
+      const input = row.querySelector('input'), err = row.querySelector('.err');
+      const spec = () => ({ name: o.name || o.label.replace(/<[^>]+>/g, ''), unit: o.unit, min: typeof o.min === 'function' ? o.min(app) : o.min, max: typeof o.max === 'function' ? o.max(app) : o.max, gt: o.gt, integer: o.integer, check: o.check ? v => o.check(v, app) : null });
+      function commit() {
+        const r = validateNumber(input.value, spec());
+        if (r.error) {
+          err.textContent = r.error; input.setAttribute('aria-invalid', 'true'); app.invalid[o.id] = r.error;
+        } else {
+          err.textContent = ''; input.removeAttribute('aria-invalid'); delete app.invalid[o.id];
+          o.set(app, r.value);
+        }
+        app.changed();
+      }
+      input.addEventListener('input', commit);
+      input.addEventListener('keydown', e => {
+        if ((e.key === 'ArrowUp' || e.key === 'ArrowDown') && o.step) {
+          e.preventDefault();
+          const cur = parseNumber(input.value);
+          const base = isNum(cur) ? cur : o.get(app);
+          const d = (e.key === 'ArrowUp' ? 1 : -1) * o.step * (e.shiftKey ? 10 : 1);
+          input.value = fmtInput(Number((base + d).toFixed(10)));
+          commit();
+        }
+      });
+      const field = {
+        o, input, err, row,
+        sync() {
+          if (document.activeElement === input || app.invalid[o.id]) return;
+          const v = o.get(app); const s = fmtInput(v);
+          if (input.value !== s && parseNumber(input.value) !== v) input.value = s;
+          else if (input.value === '' && s !== '') input.value = s;
+        },
+        revalidate() { if (input.value !== '') { const r = validateNumber(input.value, spec()); if (r.error && !app.invalid[o.id]) { err.textContent = r.error; input.setAttribute('aria-invalid', 'true'); app.invalid[o.id] = r.error; } else if (!r.error && app.invalid[o.id]) { err.textContent = ''; input.removeAttribute('aria-invalid'); delete app.invalid[o.id]; o.set(app, r.value); } } },
+        reset() { err.textContent = ''; input.removeAttribute('aria-invalid'); delete app.invalid[o.id]; input.value = fmtInput(o.get(app)); },
+      };
+      input.value = fmtInput(o.get(app));
+      app.fields.push(field);
+      parent.appendChild(row);
+      return field;
+    };
+    // Select row. o: { id, label, options: [[value, label]] or fn(app), get, set }
+    app.selectField = (parent, o) => {
+      const row = h('div', { class: 'fld' });
+      row.innerHTML = '<label for="' + o.id + '">' + o.label + '</label><span class="ctl"><select id="' + o.id + '"></select></span>';
+      const sel = row.querySelector('select');
+      const fill = () => {
+        const opts = typeof o.options === 'function' ? o.options(app) : o.options;
+        const html = opts.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
+        if (sel.innerHTML !== html) sel.innerHTML = html;
+        sel.value = String(o.get(app));
+      };
+      fill();
+      sel.addEventListener('change', () => { o.set(app, sel.value); app.changed(); });
+      const field = { o, input: sel, row, sync: fill, reset: fill, revalidate() { } };
+      app.fields.push(field);
+      parent.appendChild(row);
+      return field;
+    };
+    app.checkField = (parent, o) => {
+      const row = h('label', { class: 'chk' }, '<input type="checkbox" id="' + o.id + '"> ' + o.label);
+      const cb = row.querySelector('input');
+      cb.checked = !!o.get(app);
+      cb.addEventListener('change', () => { o.set(app, cb.checked); app.changed(); });
+      const field = { o, input: cb, row, sync() { cb.checked = !!o.get(app); }, reset() { cb.checked = !!o.get(app); }, revalidate() { } };
+      app.fields.push(field);
+      parent.appendChild(row);
+      return field;
+    };
+    app.removeFields = container => { app.fields = app.fields.filter(f => { if (container.contains(f.row)) { delete app.invalid[f.o.id]; return false; } return true; }); };
+    app.hasInvalid = () => Object.keys(app.invalid).length > 0;
+    app.invalidReason = () => 'not defined: fix the highlighted input' + (Object.keys(app.invalid).length > 1 ? 's' : '');
+
+    /* =================================================================
+       PREDICT FIRST (00 §4)
+       ================================================================= */
+    const pfOn = () => !!app.settings.predictFirst;
+    app.masked = () => pfOn() && !app.pf.revealed;
+    // Wrap a readout value: shows a blank box while hidden.
+    app.show = (text) => app.masked() ? '<span class="masked" aria-label="hidden until you check your prediction">?</span>' : text;
+    function clearPrediction() { app.pf.revealed = false; app.pf.fields = {}; app.pf.messages = []; }
+    $('shPredict').addEventListener('click', () => {
+      app.settings.predictFirst = !pfOn(); saveSettings(); clearPrediction(); render();
+      app.announce(pfOn() ? 'Predict first is on. Results are hidden until you check a prediction.' : 'Predict first is off.');
+    });
+    function problemId() { return cfg.problemId ? cfg.problemId(app) : PL.sandboxProblemId(snapshot().values); }
+    function snapshot() { return cfg.inputsSnapshot ? cfg.inputsSnapshot(app) : { values: {}, units: {} }; }
+    function renderPf() {
+      const box = app.el.pf;
+      $('shPredict').setAttribute('aria-pressed', pfOn() ? 'true' : 'false');
+      if (!pfOn()) { box.hidden = true; return; }
+      box.hidden = false;
+      const targets = cfg.predictTargets(app);
+      const blocked = app.hasInvalid();
+      let html = '<h3>Predict first</h3>';
+      if (!app.pf.revealed) {
+        html += '<p class="note">Enter your predictions, then press Check. Results stay hidden until you do.</p>';
+        targets.forEach(t => {
+          const id = 'shPf_' + t.key;
+          html += '<div class="pfrow"><label for="' + id + '">' + t.label + '</label><input type="text" inputmode="decimal" id="' + id + '" data-key="' + esc(t.key) + '" value="' + esc(app.pf.fields[t.key] || '') + '" autocomplete="off"><span class="unit">' + esc(t.unit || '') + '</span></div>';
+        });
+        html += '<div class="btnrow"><button class="btn primary" id="shCheck" type="button"' + (blocked ? ' disabled' : '') + '>Check</button></div>';
+        if (blocked) html += '<p class="note warn">Fix the highlighted input before checking.</p>';
+      } else {
+        app.pf.messages.forEach(m => { html += '<div class="pfmsg ' + (m.verdict || '') + '">' + m.html + '</div>'; });
+        html += '<div class="btnrow"><button class="btn" id="shAgain" type="button">Predict again</button></div>';
+      }
+      box.innerHTML = html;
+      box.querySelectorAll('input[data-key]').forEach(inp => inp.addEventListener('input', () => { app.pf.fields[inp.dataset.key] = inp.value; }));
+      box.querySelectorAll('input[data-key]').forEach(inp => inp.addEventListener('keydown', e => { if (e.key === 'Enter') check(); }));
+      const c = $('shCheck'); if (c) c.addEventListener('click', check);
+      const a = $('shAgain'); if (a) a.addEventListener('click', () => { clearPrediction(); render(); const f = box.querySelector('input'); if (f) f.focus(); });
+    }
+    function check() {
+      if (app.hasInvalid()) return;
+      const targets = cfg.predictTargets(app);
+      const student = app.student() || 'unnamed';
+      const pid = problemId(), snap = snapshot();
+      const msgs = [], recs = [];
+      for (const t of targets) {
+        const raw = app.pf.fields[t.key];
+        if (raw === undefined || String(raw).trim() === '') continue;
+        const p = parseNumber(raw);
+        if (!isNum(p)) { app.toast(t.label.replace(/<[^>]+>/g, '') + ': enter a number.'); document.getElementById('shPf_' + t.key).focus(); return; }
+        const model = isNum(t.model) ? t.model : null;
+        const rec = PL.makeRecord({
+          tool: cfg.tool, toolVersion: cfg.version, student, team: app.settings.team, classPeriod: app.settings.classPeriod,
+          problemId: pid, quantity: t.quantity || t.key, unit: t.unit || '', predicted: p, model,
+          attempt: PL.nextAttempt(app.log, student, pid, t.quantity || t.key), inputs: snap,
+        });
+        recs.push(rec);
+        const v = verdictFor(rec.pctPredVsModel, cfg.tolerance);
+        const tag = v === 'match' ? ' <span class="pftag match">Match</span>' : v === 'close' ? ' <span class="pftag close">Close</span>' : '';
+        msgs.push({ verdict: v === 'match' ? 'match' : v === 'close' ? 'close' : '', html: '<b>' + t.label + '</b>' + tag + '<br>' + esc(predictionMessage(p, model, t.unit, app.settings.sig, t.reason)) });
+      }
+      if (!recs.length) msgs.push({ html: 'No prediction was entered, so nothing was logged. The results are shown below.' });
+      app.log = app.log.concat(recs); saveLog();
+      app.pf.revealed = true; app.pf.messages = msgs;
+      render();
+      app.announce(msgs.map(m => m.html.replace(/<[^>]+>/g, ' ')).join(' '));
+      const again = $('shAgain'); if (again) again.focus();
+    }
+    app.check = check;
+
+    /* =================================================================
+       SHOW THE WORKING (00 §5)
+       ================================================================= */
+    app.setWorking = steps => { app.working = steps || []; };
+    function renderWorking() {
+      const body = app.el.working;
+      if (app.masked()) { body.innerHTML = '<p class="note" style="padding:8px 10px">Hidden until you check your prediction.</p>'; return; }
+      if (app.hasInvalid()) { body.innerHTML = '<p class="note" style="padding:8px 10px">' + esc(app.invalidReason()) + '.</p>'; return; }
+      if (!app.working.length) { body.innerHTML = '<p class="note" style="padding:8px 10px">Nothing to show yet.</p>'; return; }
+      body.innerHTML = '<ol class="wk">' + app.working.map(s =>
+        '<li><div class="wt">' + s.title + '</div>' +
+        (s.formula ? '<div class="wf">' + s.formula + '</div>' : '') +
+        (s.sub ? '<div class="ws">= ' + s.sub + '</div>' : '') +
+        (s.result ? '<div class="wr">= ' + s.result + '</div>' : '') +
+        (s.note ? '<div class="note">' + s.note + '</div>' : '') +
+        (s.source ? '<div class="wsrc">Source: ' + esc(s.source) + '</div>' : '') + '</li>').join('') + '</ol>';
+    }
+
+    /* =================================================================
+       RENDER CYCLE
+       ================================================================= */
+    let saveT = 0;
+    function saveState() { clearTimeout(saveT); saveT = setTimeout(() => S.set('state', { schemaVersion: cfg.schemaVersion, state: cfg.getState ? cfg.getState(app) : app.state }), 250); }
+    function saveSettings() { S.set('settings', app.settings); }
+    function saveLog() { S.set('log', app.log); }
+    function render() {
+      syncModes();
+      app.fields.forEach(f => f.sync());
+      cfg.render(app);
+      renderPf();
+      renderWorking();
+    }
+    app.render = render;
+    // Call after any input change (00 §4.4: hides results and clears predictions).
+    app.changed = (opts) => {
+      if (!(opts && opts.keepPrediction) && pfOn()) clearPrediction();
+      saveState(); render();
+    };
+    app.refreshFields = () => { app.fields.forEach(f => f.reset()); };
+
+    /* =================================================================
+       SAVE / LOAD / IMPORT (00 §6)
+       ================================================================= */
+    function context() { return cfg.context ? cfg.context(app) : 'sandbox'; }
+    app.fileName = ext => exportName({ student: app.student(), tool: cfg.slug, context: context(), dateISO: localDateISO(), ext });
+    $('shSave').addEventListener('click', () => {
+      const f = SC.makeDesignFile({ tool: cfg.tool, toolVersion: cfg.version, schemaVersion: cfg.schemaVersion }, cfg.getState ? cfg.getState(app) : app.state);
+      f.student = app.student();
+      download(app.fileName('json'), JSON.stringify(f, null, 2), 'application/json');
+      app.toast('Saved ' + app.fileName('json'));
+    });
+    $('shLoad').addEventListener('click', () => app.openFile());
+    app.openFile = () => { $('shFile').value = ''; $('shFile').click(); };
+    $('shFile').addEventListener('change', e => { const f = e.target.files[0]; if (f) readFile(f); });
+    document.addEventListener('dragover', e => { if (e.dataTransfer && [...e.dataTransfer.types].includes('Files')) e.preventDefault(); });
+    document.addEventListener('drop', e => { if (e.dataTransfer && e.dataTransfer.files.length) { e.preventDefault(); readFile(e.dataTransfer.files[0]); } });
+    function readFile(file) {
+      const r = new FileReader();
+      r.onload = () => app.loadText(String(r.result), file.name);
+      r.onerror = () => app.toast('That file could not be read.', 6000);
+      r.readAsText(file);
+    }
+    app.loadText = (text, name) => {
+      try {
+        const kind = /\.csv$/i.test(name || '') ? 'prediction-log' : SC.kindOf(text);
+        if (kind === 'design') {
+          const res = SC.readDesignFile(text, { tool: cfg.tool, schemaVersion: cfg.schemaVersion, migrate: cfg.migrate });
+          app.state = Object.assign(cfg.defaultState(), res.value.state);
+          if (cfg.afterLoad) cfg.afterLoad(app);
+          app.invalid = {};
+          clearPrediction(); app.refreshFields(); saveState(); render();
+          app.toast(res.warnings.length ? res.warnings.join(' ') : 'Loaded ' + (name || 'design') + '.', res.warnings.length ? 8000 : 3500);
+          return { ok: true, warnings: res.warnings };
+        }
+        if (kind === 'prediction-log') {
+          const res = PL.parseFile(name || 'log.json', text);
+          const d = PL.dedupe(app.log.concat(res.records));
+          const added = d.records.length - app.log.length;
+          app.log = d.records; saveLog();
+          app.toast('Added ' + added + ' prediction record' + (added === 1 ? '' : 's') + ' to your log.' + (res.warnings.length ? ' Note: ' + res.warnings.join(' ') : ''), 6000);
+          return { ok: true };
+        }
+        if (kind && cfg.imports && cfg.imports[kind]) { cfg.imports[kind](app, text, name); return { ok: true }; }
+        throw new Error(kind ? 'The ' + cfg.tool + ' cannot open a ' + kind + ' file.' : 'This file is not a design, import or prediction log this tool can read.');
+      } catch (err) {
+        app.toast(err.message, 8000);
+        return { ok: false, error: err.message };
+      }
+    };
+    app.download = download;
+
+    /* =================================================================
+       EXPORT IMAGE (00 §6): 2× PNG, ink on paper, caption strip
+       ================================================================= */
+    function drawingForExport() { return app.withLight(() => cfg.drawing(app, { export: true })); }
+    function captionText() {
+      return 'Name: ' + (app.student() || 'unnamed') + '   ·   ' + cfg.tool + '   ·   ' + (cfg.contextLabel ? cfg.contextLabel(app) : 'Sandbox') + '   ·   ' + localDateISO();
+    }
+    app.exportImage = () => new Promise((resolve, reject) => {
+      const d = drawingForExport();
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const scale = 2, capH = 40, W = d.width, H = d.height + capH;
+          const c = document.createElement('canvas'); c.width = W * scale; c.height = H * scale;
+          const x = c.getContext('2d'); x.scale(scale, scale);
+          x.fillStyle = '#FFFFFF'; x.fillRect(0, 0, W, H);
+          x.drawImage(img, 0, 0, d.width, d.height);
+          x.strokeStyle = '#23272C'; x.lineWidth = 1.5; x.beginPath(); x.moveTo(0, d.height + 0.75); x.lineTo(W, d.height + 0.75); x.stroke();
+          x.fillStyle = '#23272C'; x.font = '600 13px "Avenir Next","Segoe UI",sans-serif'; x.textBaseline = 'middle';
+          x.fillText(captionText(), 12, d.height + capH / 2);
+          c.toBlob(blob => { download(app.fileName('png'), blob); resolve({ width: c.width, height: c.height }); }, 'image/png');
+        } catch (e) { app.toast('The image could not be exported in this browser.', 6000); reject(e); }
+      };
+      img.onerror = () => { app.toast('The image could not be exported in this browser.', 6000); reject(new Error('svg load failed')); };
+      img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(d.svg);
+    });
+    $('shPng').addEventListener('click', () => { app.exportImage().catch(() => { }); });
+
+    /* =================================================================
+       REPORT (00 §6): printable page
+       ================================================================= */
+    app.buildReport = () => {
+      const d = drawingForExport();
+      const r = cfg.report(app);
+      const rows = list => list.map(([k, v]) => '<tr><th style="width:45%">' + k + '</th><td class="mono">' + v + '</td></tr>').join('');
+      const session = app.log.filter(x => Date.parse(x.timestamp) >= app.sessionStart - 1000);
+      const wk = app.masked() ? '<p>Hidden until the prediction is checked.</p>' : app.working.length ? '<table><tr class="hd"><th>#</th><th>Step</th><th>Formula</th><th>With numbers</th><th>Result</th><th>Source</th></tr>' +
+        app.working.map((s, i) => '<tr><td>' + (i + 1) + '</td><td>' + s.title + '</td><td class="mono">' + (s.formula || '') + '</td><td class="mono">' + (s.sub || '') + '</td><td class="mono">' + (s.result || '') + '</td><td>' + esc(s.source || '') + '</td></tr>').join('') + '</table>' : '<p>Nothing to show.</p>';
+      const hist = session.length ? '<table><tr class="hd"><th>Time</th><th>Quantity</th><th>Predicted</th><th>Model</th><th>Difference</th><th>Attempt</th></tr>' +
+        session.map(x => '<tr><td>' + esc(x.timestamp.slice(11, 19)) + '</td><td>' + esc(x.quantity) + '</td><td class="mono">' + fmtSig(x.predicted, app.settings.sig) + ' ' + esc(x.unit) + '</td><td class="mono">' + (x.model === null ? 'not defined' : fmtSig(x.model, app.settings.sig) + ' ' + esc(x.unit)) + '</td><td class="mono">' + fmtPct(x.pctPredVsModel, app.settings.sig) + '</td><td>' + x.attempt + '</td></tr>').join('') + '</table>' : '<p>No predictions checked this session.</p>';
+      const sources = (cfg.help && cfg.help.sources || []).map(s => '<li>' + esc(s.title) + (s.url ? ': ' + esc(s.url) : '') + '</li>').join('');
+      report.innerHTML = '<div class="rb"><h1>' + esc(cfg.tool) + ' — Report</h1><div class="sub">' + esc(cfg.subtitle || '') + '</div>' +
+        '<table><tr class="hd"><th>Name</th><th>Date</th><th>Mode</th><th>Tool version</th></tr><tr><td>' + esc(app.student() || 'unnamed') + '</td><td>' + localDateISO() + '</td><td>' + esc(cfg.contextLabel ? cfg.contextLabel(app) : 'Sandbox') + '</td><td>' + esc(cfg.version) + '</td></tr></table>' +
+        '<div class="fig">' + d.svg + '</div>' +
+        '<h2>Inputs</h2><table>' + rows(r.inputs) + '</table>' +
+        '<h2>Results</h2><table>' + rows(r.outputs) + '</table>' +
+        (r.notes && r.notes.length ? '<h2>Notes</h2><ul>' + r.notes.map(n => '<li>' + n + '</li>').join('') + '</ul>' : '') +
+        '<h2>Show the working</h2>' + wk +
+        '<h2>Prediction history (this session)</h2>' + hist +
+        '<h2>Sources</h2><ol>' + sources + '</ol>' +
+        '<div class="sig"><span>Student signature</span><span>Teacher check</span></div></div>';
+      return report;
+    };
+    $('shReport').addEventListener('click', () => {
+      app.buildReport();
+      const prev = document.title;
+      document.title = app.fileName('');
+      document.title = document.title.replace(/\.$/, '');
+      const restore = () => { document.title = prev; window.removeEventListener('afterprint', restore); };
+      window.addEventListener('afterprint', restore);
+      window.print();
+      setTimeout(restore, 1500);
+    });
+
+    /* =================================================================
+       PREDICTION LOG DIALOG (07 §3.3)
+       ================================================================= */
+    function renderLog() {
+      const b = logD.body, sig = app.settings.sig;
+      const recs = app.log.map((r, i) => ({ r, i })).reverse();
+      b.innerHTML = '<p>Every Check in predict-first mode adds a row here. You can add a measured lab value and a note to any row. Records stay in this browser until you clear them in Settings.</p>' +
+        '<div class="btnrow"><button class="btn" id="shLogJson">Export JSON</button><button class="btn" id="shLogCsv">Export CSV</button><button class="btn" id="shLogCopy">Copy last row</button></div>' +
+        (recs.length ? '<div style="overflow-x:auto"><table><thead><tr><th>Time</th><th>Problem</th><th>Quantity</th><th>Predicted</th><th>Model</th><th>Diff.</th><th>Try</th><th>Measured</th><th>Note</th></tr></thead><tbody>' +
+          recs.map(({ r, i }) => '<tr><td>' + esc(r.timestamp.slice(5, 16).replace('T', ' ')) + '</td><td>' + esc(r.problemId) + '</td><td>' + esc(r.quantity) + '</td><td>' + fmtSig(r.predicted, sig) + ' ' + esc(r.unit) + '</td><td>' + (r.model === null ? 'not defined' : fmtSig(r.model, sig)) + '</td><td>' + fmtPct(r.pctPredVsModel, sig) + '</td><td>' + r.attempt + '</td>' +
+            '<td><input data-i="' + i + '" data-f="measured" inputmode="decimal" aria-label="Measured value for ' + esc(r.quantity) + '" value="' + (r.measured === null ? '' : r.measured) + '"></td>' +
+            '<td><input data-i="' + i + '" data-f="note" aria-label="Note for ' + esc(r.quantity) + '" maxlength="200" value="' + esc(r.note) + '"></td></tr>').join('') + '</tbody></table></div>'
+          : '<p class="note">No predictions yet. Turn on Predict first, enter a prediction and press Check.</p>');
+      b.querySelectorAll('input[data-i]').forEach(inp => inp.addEventListener('change', () => {
+        const i = +inp.dataset.i, f = inp.dataset.f;
+        if (f === 'measured') { const v = inp.value.trim() === '' ? null : parseNumber(inp.value); if (v !== null && !isNum(v)) { app.toast('Measured value must be a number.'); return; } app.log[i] = PL.annotate(app.log[i], { measured: v }); }
+        else app.log[i] = PL.annotate(app.log[i], { note: inp.value });
+        saveLog(); renderLog();
+      }));
+      const logName = ext => exportName({ student: app.student(), tool: cfg.slug, context: 'prediction-log', dateISO: localDateISO(), ext });
+      $('shLogJson').addEventListener('click', () => download(logName('json'), JSON.stringify(PL.toJSON(app.log), null, 2), 'application/json'));
+      $('shLogCsv').addEventListener('click', () => download(logName('csv'), PL.toCSV(app.log), 'text/csv;charset=utf-8'));
+      $('shLogCopy').addEventListener('click', async () => {
+        if (!app.log.length) { app.toast('The log is empty.'); return; }
+        const ok = await copyText(PL.toTSVRow(app.log[app.log.length - 1]));
+        app.toast(ok ? 'Copied the last row. Paste it into your class spreadsheet.' : 'Copy did not work in this browser. Use Export CSV instead.');
+      });
+    }
+    $('shLog').addEventListener('click', () => { renderLog(); logD.dlg.showModal(); });
+
+    /* =================================================================
+       SETTINGS, CLEAR MY DATA
+       ================================================================= */
+    function renderSettings() {
+      const b = setD.body;
+      b.innerHTML = '<h3>Numbers</h3><div class="fld"><label for="shSig">Significant figures shown</label><span class="ctl"><select id="shSig"><option value="3">3</option><option value="4">4</option></select></span></div>' +
+        '<p class="note">Calculations are never rounded; this only changes the display.</p>' +
+        '<h3>Your class</h3><div class="fld"><label for="shTeam">Team (optional)</label><span class="ctl"><input type="text" id="shTeam" maxlength="40" style="text-align:left"></span></div>' +
+        '<div class="fld"><label for="shPeriod">Class period (optional)</label><span class="ctl"><input type="text" id="shPeriod" maxlength="20" style="text-align:left"></span></div>' +
+        '<div id="shSetExtra"></div>' +
+        '<h3>Your data</h3><p>Your name, current design, predictions and settings are kept in this browser only.</p>' +
+        '<div class="btnrow"><button class="btn danger" id="shClear">Clear my data</button></div><p class="note" id="shClearMsg"></p>';
+      $('shSig').value = String(app.settings.sig);
+      $('shSig').addEventListener('change', () => { app.settings.sig = +$('shSig').value; saveSettings(); render(); });
+      $('shTeam').value = app.settings.team; $('shPeriod').value = app.settings.classPeriod;
+      $('shTeam').addEventListener('input', () => { app.settings.team = $('shTeam').value; saveSettings(); });
+      $('shPeriod').addEventListener('input', () => { app.settings.classPeriod = $('shPeriod').value; saveSettings(); });
+      if (cfg.settingsExtra) cfg.settingsExtra(app, $('shSetExtra'));
+      let armed = false;
+      $('shClear').addEventListener('click', () => {
+        if (!armed) { armed = true; $('shClear').textContent = 'Click again to clear everything'; $('shClearMsg').textContent = 'This removes your name, design, prediction log and settings from this browser.'; return; }
+        app.clearData(); setD.dlg.close();
+      });
+    }
+    app.clearData = () => {
+      S.clearAll(); G.del('name');
+      app.settings = Object.assign({ sig: 3, team: '', classPeriod: '', predictFirst: false }, cfg.defaultSettings || {});
+      app.log = []; app.state = cfg.defaultState(); nameEl.value = ''; app.invalid = {};
+      if (cfg.afterLoad) cfg.afterLoad(app);
+      clearPrediction(); app.refreshFields(); render();
+      app.toast('Your data was cleared from this browser.');
+    };
+    app.saveSettings = saveSettings;
+    $('shSettings').addEventListener('click', () => { renderSettings(); setD.dlg.showModal(); });
+
+    /* =================================================================
+       HELP (00 §2)
+       ================================================================= */
+    function renderHelp() {
+      const hp = cfg.help || {};
+      const keys = (hp.keys || []).concat([['?', 'Open this help'], ['Esc', 'Close a dialog'], ['↑ / ↓ in a number box', 'Step the value (hold Shift for ×10)'], ['Enter in a prediction box', 'Check']]);
+      helpD.body.innerHTML = (hp.html || '') +
+        '<h3>Predict first</h3><p>Turn on <strong>Predict first</strong> in the header. The results you are asked to predict are hidden. Type a prediction for each one and press <strong>Check</strong>. The tool shows how far off you were and saves the attempt to your prediction log (<strong>Log</strong> button). Change any input and the results hide again. Within 1% counts as a match and within 5% as close. Open <strong>Show the working</strong> to see each step of the calculation and find where a prediction went wrong.</p>' +
+        '<h3>Numbers and units</h3><p>Results show 3 significant figures (4 in Settings). The tool never rounds in the middle of a calculation. ' + (hp.units || '') + '</p>' +
+        '<h3>Saving your work</h3><p>Your name, design and predictions are kept in this browser. <strong>Save</strong> downloads a design file, and <strong>Load</strong> opens one (you can also drop a file onto the page). <strong>Export image</strong> downloads a picture of the drawing, and <strong>Report</strong> opens a printable page: choose "Save as PDF" in the print window. Exports always print ink on paper, whichever theme is on screen.</p>' +
+        '<h3>Keyboard</h3><ul>' + keys.map(([k, a]) => '<li><kbd>' + esc(k) + '</kbd> ' + esc(a) + '</li>').join('') + '</ul>' +
+        '<p>Screen readers hear a description of the drawing whenever it changes. With your system\'s reduce motion setting on, animations stop but numbers stay live. Use a laptop, Chromebook or full-size tablet; phone screens are too small for the drawing.</p>' +
+        '<h3>Sources</h3><ol>' + (hp.sources || []).map(s => '<li>' + esc(s.title) + (s.url ? ': <a href="' + esc(s.url) + '" target="_blank" rel="noopener">' + esc(s.url) + '</a>' : '') + '</li>').join('') + '</ol>' +
+        '<div class="teacher"><h3 style="margin-top:0">Teacher notes</h3>' + (hp.teacher || '') +
+        '<p>The prediction log exports as JSON or CSV in the shared Engineered by the Numbers format, so a class set can be merged in the Prediction Log Collector. Nothing is sent anywhere; all data stays in the student\'s browser.</p></div>' +
+        '<p class="note">' + esc(cfg.tool) + ' version ' + esc(cfg.version) + '.</p>';
+    }
+    app.openHelp = () => { renderHelp(); helpD.dlg.showModal(); };
+    $('shHelp').addEventListener('click', app.openHelp);
+    document.addEventListener('keydown', e => {
+      const t = e.target, typing = t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable);
+      if (e.key === '?' && !typing && !document.querySelector('dialog[open]')) { e.preventDefault(); app.openHelp(); }
+    });
+
+    /* ---------------- go ---------------- */
+    syncTheme();
+    if (cfg.afterLoad) cfg.afterLoad(app);
+    if (cfg.build) cfg.build(app);
+    app.fields.forEach(f => f.revalidate());
+    render();
+    if (typeof window !== 'undefined') window.__app = app;
+    return app;
+  }
+
+  return { create, util, version: '1.0.0' };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = Shell;
+/* END vendor:shell.js */
+/* BEGIN core */
+// Shaft and Beam Workbench core (spec 01). Sits between the interface and the
+// shared BeamCore model: converts the display-unit state (mm, N, N·m, MPa, GPa,
+// rpm) to SI at the edges, finds torque from power and speed, keeps loads on the
+// modeled length, builds the show-the-working steps and the drawing description,
+// and places imported shaft loads. Pure functions, no DOM; tested in dev/test.js.
+const ShaftTool = (function () {
+  'use strict';
+  const BC = typeof BeamCore !== 'undefined' ? BeamCore : require('./vendor/beam-core.js');
+  const PI = Math.PI;
+  const isNum = v => typeof v === 'number' && isFinite(v);
+
+  const SOURCES = {
+    statics: 'OpenStax College Physics 2e, 9.2',
+    beam: 'Optimal Beam, simply supported beam',
+    power: 'OpenStax University Physics Vol. 1, 10.8',
+    shaft: 'Omni Calculator, shaft size',
+    reuven: 'Reuven Engineering Tools, shaft design',
+    vm: 'Steltech, combined torsion and bending',
+    I: 'Engineering Hulk, column buckling (I = πd⁴/64)',
+    kt: 'Fiveable, shaft design and analysis',
+  };
+
+  // Placeholder material presets (00 §9, QUESTIONS Q4). The teacher replaces these.
+  const MATERIALS = [
+    { id: 'steel', label: 'Placeholder steel', Sy: 400, E: 200 },
+    { id: 'aluminum', label: 'Placeholder aluminum', Sy: 250, E: 69 },
+    { id: 'brass', label: 'Placeholder brass', Sy: 200, E: 100 },
+    { id: 'custom', label: 'Custom (my own values)', Sy: null, E: null },
+  ];
+
+  const MAX_LOADS = 6;
+
+  function defaultState() {
+    return {
+      mode: 'shaft', L: 300, overhang: false, oL: 0, oR: 0,
+      loads: [{ id: 1, label: 'Gear 1', P: 1000, a: 150 }],
+      torqueEntry: 'power', T: 15.9, P: 500, N: 300, tFrom: 0, tTo: 150, tAuto: true,
+      d: 20, material: 'steel', Sy: 400, E: 200, nTarget: 2, Kb: 1, Kt: 1,
+      rule: 'tresca', extension: false, deflection: false, nextId: 2,
+    };
+  }
+
+  // Validation specs for the numeric fields (00 §8). Shared with the interface.
+  const FIELDS = {
+    L: { name: 'Span', unit: 'mm', gt: 0, min: 20, max: 3000 },
+    oL: { name: 'Left overhang', unit: 'mm', min: 0 },
+    oR: { name: 'Right overhang', unit: 'mm', min: 0 },
+    P: { name: 'Load', unit: 'N', min: -20000, max: 20000 },
+    a: { name: 'Load position', unit: 'mm' },
+    T: { name: 'Torque', unit: 'N·m', min: 0, max: 5000 },
+    power: { name: 'Power', unit: 'W', min: 0, max: 100000 },
+    N: { name: 'Speed', unit: 'rpm', gt: 0, min: 1, max: 20000 },
+    station: { name: 'Station', unit: 'mm' },
+    d: { name: 'Diameter', unit: 'mm', gt: 0, max: 500 },
+    Sy: { name: 'Yield strength', unit: 'MPa', gt: 0, min: 1, max: 3000 },
+    E: { name: 'Elastic modulus', unit: 'GPa', min: 0.1, max: 400 },
+    nTarget: { name: 'Target safety factor', unit: '', min: 1, max: 10 },
+    K: { name: 'Stress concentration factor', unit: '', min: 1, max: 5 },
+  };
+
+  const range = s => [s.overhang ? -s.oL : 0, s.L + (s.overhang ? s.oR : 0)];
+
+  // Torque in N·m from the state; ω in rad/s when power and speed are used (§3.3).
+  function torque(s) {
+    if (s.mode === 'beam') return { T: 0, omega: null, from: 'none' };
+    if (s.torqueEntry === 'power') { const omega = s.N * 2 * PI / 60; return { T: s.P / omega, omega, from: 'power' }; }
+    return { T: s.T, omega: null, from: 'direct' };
+  }
+
+  function heaviestStation(s) {
+    if (!s.loads.length) return s.L / 2;
+    let best = s.loads[0];
+    for (const l of s.loads) if (Math.abs(l.P) > Math.abs(best.P)) best = l;
+    return best.a;
+  }
+
+  // Keep loads and torque stations on the modeled length after a span or overhang change.
+  // Returns a list of plain-language notes about anything that moved.
+  function clampToModel(s) {
+    const [lo, hi] = range(s), notes = [];
+    const clamp = v => Math.min(hi, Math.max(lo, v));
+    for (const l of s.loads) {
+      const c = clamp(l.a);
+      if (c !== l.a) { notes.push(l.label + ' moved to ' + round(c) + ' mm to stay on the shaft.'); l.a = c; }
+    }
+    s.tFrom = clamp(s.tFrom); s.tTo = clamp(s.tTo);
+    if (s.tAuto) s.tTo = heaviestStation(s);
+    return notes;
+  }
+  const round = v => Math.round(v * 1000) / 1000;
+
+  // Display-unit state -> BeamCore input (SI).
+  function toSI(s) {
+    const t = torque(s);
+    const [lo, hi] = range(s);
+    return {
+      L: s.L / 1000, overhangLeft: -lo / 1000, overhangRight: (hi - s.L) / 1000,
+      loads: s.loads.map(l => ({ P: l.P, a: l.a / 1000, label: l.label })),
+      mode: s.mode, torque: s.mode === 'shaft' ? { T: t.T, from: s.tFrom / 1000, to: s.tTo / 1000 } : null,
+      d: s.d / 1000, Sy: s.Sy * 1e6, E: s.deflection ? s.E * 1e9 : undefined,
+      Kb: s.Kb, Kt: s.Kt, nTarget: s.nTarget, rule: s.rule === 'vonMises' ? 'vonMises' : 'tresca',
+    };
+  }
+
+  // Everything the interface shows, in display units.
+  function solve(s) {
+    const t = torque(s);
+    const si = toSI(s);
+    const r = BC.analyze(si);
+    const c = r.critical;
+    const out = {
+      state: s, t, r, range: range(s),
+      RA: r.RA, RB: r.RB,
+      Mmax: r.Mmax.M, MmaxAbs: Math.abs(r.Mmax.M), MmaxX: r.Mmax.x * 1000,
+      T: r.torque,
+      crit: c ? {
+        x: c.x * 1000, M: c.M, T: c.T, sigma: c.sigma / 1e6, tau: c.tau / 1e6,
+        tauMax: c.tauMax / 1e6, sigmaVM: c.sigmaVM / 1e6, n: c.n,
+      } : null,
+      n: r.n, nReason: r.nReason, pass: r.pass,
+      dReq: r.dReq === null ? null : r.dReq * 1000, dReqX: r.dReqX === null ? null : r.dReqX * 1000,
+      defl: r.deflection ? { max: r.deflection.max * 1000, x: r.deflection.x * 1000, I: r.deflection.I * 1e12, signed: r.deflection.maxSigned * 1000 } : null,
+    };
+    return out;
+  }
+
+  // Values at one station, in display units (for the station readout).
+  function station(sol, xmm) {
+    const s = sol.state, r = sol.r, x = xmm / 1000;
+    const loads = s.loads.map(l => ({ P: l.P, a: l.a / 1000 }));
+    const M = BC.momentAt(x, s.L / 1000, loads, r.R);
+    const Vl = BC.shearAt(x, s.L / 1000, loads, r.R, 'left'), Vr = BC.shearAt(x, s.L / 1000, loads, r.R, 'right');
+    const T = s.mode === 'shaft' ? BC.torqueAt(x, { T: sol.T, from: s.tFrom / 1000, to: s.tTo / 1000 }) : 0;
+    const sec = BC.section({ M, T, d: s.d / 1000, Sy: s.Sy * 1e6, Kb: s.Kb, Kt: s.Kt, rule: s.rule });
+    return { x: xmm, Vl, Vr, M, T, sigma: sec.sigma / 1e6, tau: sec.tau / 1e6, tauMax: sec.tauMax / 1e6, sigmaVM: sec.sigmaVM / 1e6, n: isFinite(sec.n) ? sec.n : null };
+  }
+
+  // Test hook for SB-4 and SB-5: M and T entered directly (N·m), d in mm, Sy in MPa.
+  function sectionCheck(o) {
+    const sec = BC.section({ M: o.M, T: o.T, d: o.d / 1000, Sy: o.Sy * 1e6, Kb: o.Kb, Kt: o.Kt, rule: o.rule, nTarget: o.n });
+    return { sigma: sec.sigma / 1e6, tau: sec.tau / 1e6, tauMax: sec.tauMax / 1e6, sigmaVM: sec.sigmaVM / 1e6, n: sec.n, dReq: sec.dReq === null ? null : sec.dReq * 1000 };
+  }
+
+  // "Use this diameter" rounds up to the next 0.5 mm (§5.6).
+  const roundUpHalf = d => Math.ceil(d * 2 - 1e-9) / 2;
+
+  // Predict-first targets (§6): model values in display units.
+  function targets(sol) {
+    return [
+      { key: 'RA', quantity: 'reaction R_A', label: 'Reaction R<sub>A</sub>', unit: 'N', model: sol.RA },
+      { key: 'Mmax', quantity: 'max bending moment |M|max', label: '|M|<sub>max</sub>', unit: 'N·m', model: sol.MmaxAbs },
+      { key: 'n', quantity: 'safety factor n', label: 'Safety factor n', unit: '', model: sol.n, reason: sol.nReason },
+      { key: 'dReq', quantity: 'required diameter d', label: 'd for target n', unit: 'mm', model: sol.dReq, reason: sol.dReq === null ? 'no load' : null },
+    ];
+  }
+
+  function snapshot(s) {
+    const si = toSI(s);
+    return {
+      values: {
+        mode: s.mode, L: si.L, overhangLeft: si.overhangLeft, overhangRight: si.overhangRight,
+        loads: si.loads.map(l => ({ label: l.label, P: l.P, a: l.a })),
+        T: si.torque ? si.torque.T : 0, torqueFrom: si.torque ? si.torque.from : null, torqueTo: si.torque ? si.torque.to : null,
+        d: si.d, Sy: si.Sy, E: s.E * 1e9, Kb: s.Kb, Kt: s.Kt, nTarget: s.nTarget, rule: si.rule,
+      },
+      units: { L: 'm', overhangLeft: 'm', overhangRight: 'm', 'loads.P': 'N', 'loads.a': 'm', T: 'N·m', torqueFrom: 'm', torqueTo: 'm', d: 'm', Sy: 'Pa', E: 'Pa' },
+    };
+  }
+
+  /* ------------------------------------------------------------ show the working (§9) */
+  // f(v) formats a number; fu(v, unit) adds a unit. Returns [{title, formula, sub, result, source}].
+  function working(sol, f, fu) {
+    const s = sol.state, steps = [];
+    const Nmm = v => fu(v * 1000, 'N·mm');
+    if (!s.loads.length) steps.push({ title: 'Reactions', formula: 'No loads on the shaft, so R<sub>A</sub> = R<sub>B</sub> = 0.', source: SOURCES.statics });
+    else {
+      const terms = s.loads.map(l => '(' + fu(l.P, 'N') + ' × ' + fu(l.a, 'mm') + ')').join(' + ');
+      steps.push({ title: 'Reaction at B (moments about A)', formula: 'R<sub>B</sub> = Σ(P<sub>i</sub> · a<sub>i</sub>) / L', sub: '[' + terms + '] / ' + fu(s.L, 'mm'), result: fu(sol.RB, 'N') + (sol.RB < 0 ? ' (pulls down)' : ''), source: SOURCES.statics });
+      steps.push({ title: 'Reaction at A (vertical balance)', formula: 'R<sub>A</sub> = ΣP<sub>i</sub> − R<sub>B</sub>', sub: fu(sol.r.R.sumP, 'N') + ' − ' + fu(sol.RB, 'N'), result: fu(sol.RA, 'N') + (sol.RA < 0 ? ' (pulls down)' : ''), source: SOURCES.statics });
+    }
+    steps.push({ title: 'Largest bending moment', formula: 'M(x) = Σ moments about x of the forces to the left of x', sub: momentTerms(sol, sol.MmaxX, fu), result: Nmm(sol.Mmax) + ' = ' + fu(sol.Mmax, 'N·m') + ' at x = ' + fu(sol.MmaxX, 'mm') + (sol.Mmax < 0 ? ' (hogging)' : ''), source: SOURCES.beam });
+    if (s.mode === 'shaft') {
+      if (sol.t.from === 'power') {
+        steps.push({ title: 'Angular speed', formula: 'ω = 2πN / 60', sub: '2π × ' + fu(s.N, 'rpm') + ' / 60', result: fu(sol.t.omega, 'rad/s'), source: SOURCES.power });
+        steps.push({ title: 'Torque', formula: 'T = P / ω', sub: fu(s.P, 'W') + ' / ' + fu(sol.t.omega, 'rad/s'), result: fu(sol.T, 'N·m') + ', carried from ' + fu(s.tFrom, 'mm') + ' to ' + fu(s.tTo, 'mm'), source: SOURCES.power });
+      } else steps.push({ title: 'Torque', formula: 'T entered directly', result: fu(sol.T, 'N·m') + ', carried from ' + fu(s.tFrom, 'mm') + ' to ' + fu(s.tTo, 'mm') });
+    }
+    const c = sol.crit;
+    if (!c) {
+      steps.push({ title: 'Safety factor', formula: 'n = S<sub>y</sub> / (2 τ<sub>max</sub>)', result: 'not defined: ' + (sol.nReason || 'no load'), source: SOURCES.reuven });
+      return steps;
+    }
+    const d3 = 'π × (' + fu(s.d, 'mm') + ')³';
+    steps.push({ title: 'Critical section', formula: 'The station with the lowest safety factor, found by checking every station', result: 'x = ' + fu(c.x, 'mm') + ': M = ' + fu(c.M, 'N·m') + ', T = ' + fu(c.T, 'N·m') });
+    if (Math.abs(c.x - sol.MmaxX) > 1e-6) steps.push({ title: 'Moment at the critical section', formula: 'M(x) = Σ moments about x of the forces to the left of x', sub: momentTerms(sol, c.x, fu), result: Nmm(c.M) + ' = ' + fu(c.M, 'N·m'), source: SOURCES.beam });
+    steps.push({ title: 'Bending stress', formula: 'σ = 32 K<sub>b</sub> M / (π d³)', sub: '32 × ' + f(s.Kb) + ' × ' + Nmm(Math.abs(c.M)) + ' / [' + d3 + ']', result: fu(c.sigma, 'MPa'), source: SOURCES.shaft });
+    if (s.mode === 'shaft') steps.push({ title: 'Torsional shear stress', formula: 'τ = 16 K<sub>t</sub> T / (π d³)', sub: '16 × ' + f(s.Kt) + ' × ' + Nmm(c.T) + ' / [' + d3 + ']', result: fu(c.tau, 'MPa'), source: SOURCES.shaft });
+    if (s.rule === 'vonMises') {
+      steps.push({ title: 'Combined stress (von Mises)', formula: 'σ′ = √(σ² + 3τ²)', sub: '√[(' + fu(c.sigma, 'MPa') + ')² + 3 × (' + fu(c.tau, 'MPa') + ')²]', result: fu(c.sigmaVM, 'MPa'), source: SOURCES.vm });
+      steps.push({ title: 'Safety factor', formula: 'n = S<sub>y</sub> / σ′', sub: fu(s.Sy, 'MPa') + ' / ' + fu(c.sigmaVM, 'MPa'), result: f(c.n) + (sol.pass ? ' ≥ ' : ' < ') + f(s.nTarget) + (sol.pass ? ', passes' : ', fails'), source: SOURCES.vm });
+    } else {
+      steps.push({ title: 'Combined shear stress (maximum shear stress rule)', formula: 'τ<sub>max</sub> = 16 / (π d³) × √[(K<sub>b</sub>M)² + (K<sub>t</sub>T)²]', sub: '16 / [' + d3 + '] × √[(' + Nmm(s.Kb * Math.abs(c.M)) + ')² + (' + Nmm(s.Kt * c.T) + ')²]', result: fu(c.tauMax, 'MPa'), source: SOURCES.shaft });
+      steps.push({ title: 'Safety factor', formula: 'n = S<sub>y</sub> / (2 τ<sub>max</sub>)', sub: fu(s.Sy, 'MPa') + ' / (2 × ' + fu(c.tauMax, 'MPa') + ')', result: f(c.n) + (sol.pass ? ' ≥ ' : ' < ') + f(s.nTarget) + (sol.pass ? ', passes' : ', fails'), source: SOURCES.reuven });
+    }
+    if (sol.dReq !== null) {
+      const M = Math.abs(BC.momentAt(sol.dReqX / 1000, s.L / 1000, s.loads.map(l => ({ P: l.P, a: l.a / 1000 })), sol.r.R));
+      const T = s.mode === 'shaft' ? BC.torqueAt(sol.dReqX / 1000, { T: sol.T, from: s.tFrom / 1000, to: s.tTo / 1000 }) : 0;
+      if (s.rule === 'vonMises') {
+        steps.push({ title: 'Required diameter for n = ' + f(s.nTarget), formula: 'd = ∛{ (32 n / (π S<sub>y</sub>)) × √[(K<sub>b</sub>M)² + 0.75 (K<sub>t</sub>T)²] }', sub: '∛{ (32 × ' + f(s.nTarget) + ' / (π × ' + fu(s.Sy, 'MPa') + ')) × √[(' + Nmm(s.Kb * M) + ')² + 0.75 × (' + Nmm(s.Kt * T) + ')²] }', result: fu(sol.dReq, 'mm'), source: SOURCES.reuven });
+      } else {
+        steps.push({ title: 'Required diameter for n = ' + f(s.nTarget), formula: 'd = ∛{ 16 √[(K<sub>b</sub>M)² + (K<sub>t</sub>T)²] / (π S<sub>y</sub> / (2n)) }', sub: '∛{ 16 × √[(' + Nmm(s.Kb * M) + ')² + (' + Nmm(s.Kt * T) + ')²] / (π × ' + fu(s.Sy, 'MPa') + ' / (2 × ' + f(s.nTarget) + ')) }', result: fu(sol.dReq, 'mm'), source: SOURCES.reuven });
+      }
+    }
+    if (sol.defl) {
+      steps.push({ title: 'Second moment of area', formula: 'I = π d⁴ / 64', sub: 'π × (' + fu(s.d, 'mm') + ')⁴ / 64', result: fu(sol.defl.I, 'mm⁴'), source: SOURCES.I });
+      const one = s.loads.length === 1 && !s.overhang && Math.abs(s.loads[0].a - s.L / 2) < 1e-9;
+      steps.push({
+        title: 'Maximum deflection', formula: 'y″ = M(x) / (E I), integrated twice with y = 0 at both supports',
+        result: fu(sol.defl.max, 'mm') + ' at x = ' + fu(sol.defl.x, 'mm'),
+        note: one ? 'Check with the closed form for a centered load: δ = PL³/(48EI) = ' + fu(BC.centeredDeflection(s.loads[0].P, s.L, s.E * 1000, sol.defl.I), 'mm') + '.' : '',
+        source: SOURCES.beam,
+      });
+    }
+    return steps;
+  }
+  // Substituted moment sum at station x (mm): R_A·x + R_B·(x − L) − ΣP·(x − a), in N·mm.
+  function momentTerms(sol, xmm, fu) {
+    const s = sol.state, terms = [];
+    if (xmm > 0) terms.push([sol.RA, xmm]);
+    if (xmm > s.L) terms.push([sol.RB, xmm - s.L]);
+    for (const l of s.loads) if (l.a < xmm) terms.push([-l.P, xmm - l.a]);
+    if (!terms.length) return '0';
+    return terms.map(([F, arm], i) => (i === 0 ? (F < 0 ? '−' : '') : (F < 0 ? ' − ' : ' + ')) + fu(Math.abs(F), 'N') + ' × ' + fu(arm, 'mm')).join('');
+  }
+
+  /* ------------------------------------------------------------ description (00 §7) */
+  function describe(sol, fu, masked) {
+    const s = sol.state;
+    const loads = s.loads.length ? s.loads.map(l => l.label + ', ' + fu(Math.abs(l.P), 'N') + (l.P >= 0 ? ' down' : ' up') + ' at ' + fu(l.a, 'mm')).join('; ') : 'no loads';
+    let t = (s.mode === 'shaft' ? 'Shaft' : 'Beam') + ', ' + fu(s.L, 'mm') + ' between pin A and roller B' + (s.overhang && (s.oL || s.oR) ? ', overhangs ' + fu(s.oL, 'mm') + ' left and ' + fu(s.oR, 'mm') + ' right' : '') + '. Loads: ' + loads + '.';
+    if (s.mode === 'shaft') t += ' Torque ' + fu(sol.T, 'newton meters') + ' from ' + fu(s.tFrom, 'mm') + ' to ' + fu(s.tTo, 'mm') + '.';
+    if (!masked) {
+      t += ' Reactions: A ' + fu(Math.abs(sol.RA), 'N') + (sol.RA >= 0 ? ' up' : ' down') + ', B ' + fu(Math.abs(sol.RB), 'N') + (sol.RB >= 0 ? ' up' : ' down') + '.';
+      t += ' Largest bending moment ' + fu(sol.MmaxAbs, 'newton meters') + ' at ' + fu(sol.MmaxX, 'mm') + '.';
+      if (sol.crit) t += ' Critical section at ' + fu(sol.crit.x, 'mm') + ', safety factor ' + fu(sol.n, '') + ', ' + (sol.pass ? 'passes' : 'fails') + ' the target.';
+    } else t += ' Results are hidden until you check your prediction.';
+    return t.replace(/ \./g, '.').replace(/ ,/g, ',');
+  }
+
+  /* ------------------------------------------------------------ import (§5.5, §7) */
+  // Default stations: spread evenly across the span.
+  function defaultStations(n, L) { return Array.from({ length: n }, (_, i) => Math.round(L * (i + 1) / (n + 1))); }
+  // file: result of Schemas.readShaftLoads(). positions in mm. Returns notes.
+  function importLoads(s, file, positions, replace) {
+    const notes = [];
+    const room = replace ? MAX_LOADS : MAX_LOADS - s.loads.length;
+    const incoming = file.value.loads.slice(0, Math.max(0, room));
+    if (incoming.length < file.value.loads.length) notes.push('Only ' + MAX_LOADS + ' loads fit on the shaft; ' + (file.value.loads.length - incoming.length) + ' were left out.');
+    if (replace) s.loads = [];
+    incoming.forEach((l, i) => { s.loads.push({ id: s.nextId++, label: l.label.slice(0, 20), P: l.magnitude, a: positions[i] }); });
+    const torques = incoming.map((l, i) => ({ T: l.torque, a: positions[i] })).filter(x => isNum(x.T) && x.T !== 0);
+    if (torques.length && s.mode === 'shaft') {
+      const big = torques.reduce((a, b) => Math.abs(b.T) > Math.abs(a.T) ? b : a);
+      s.torqueEntry = 'torque'; s.T = Math.abs(big.T); s.tFrom = 0; s.tTo = big.a; s.tAuto = false;
+      notes.push('Torque ' + round(Math.abs(big.T)) + ' N·m from the file is carried from A to ' + round(big.a) + ' mm. Move the torque stations if your drive comes in elsewhere.');
+    }
+    if (file.multiPlane) notes.push(MULTIPLANE);
+    clampToModel(s);
+    return notes;
+  }
+  const MULTIPLANE = 'These loads push in different directions. Version 1 treats them as one plane, which is only exact when they line up. Your teacher may want the two-plane version.';
+
+  return {
+    SOURCES, MATERIALS, MAX_LOADS, FIELDS, MULTIPLANE, defaultState, range, torque, heaviestStation, clampToModel,
+    toSI, solve, station, sectionCheck, roundUpHalf, targets, snapshot, working, describe, defaultStations, importLoads,
+  };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = ShaftTool;
+/* END core */
+
+/* =====================================================================
+   INTERFACE
+   ===================================================================== */
+(function () {
+  'use strict';
+  const T = ShaftTool, U = Shell.util, esc = U.esc;
+  const VERSION = '1.0.0';
+  let SOL = null;                  // latest solution (null while an input is invalid)
+  let LAYOUT = null;               // last drawing layout, for pointer mapping
+  const ui = { sel: null, placing: false, station: null, drag: null, hintOnce: false };
+
+  /* ------------------------------------------------------------ helpers */
+  const $ = id => document.getElementById(id);
+  const byId = (app, id) => app.state.loads.find(l => l.id === id);
+  function niceStep(span, target) {
+    const raw = span / (target || 6), mag = Math.pow(10, Math.floor(Math.log10(raw)));
+    const n = raw / mag;
+    return (n < 1.5 ? 1 : n < 3.5 ? 2 : n < 7.5 ? 5 : 10) * mag;
+  }
+  const r1 = v => Math.round(v * 10) / 10;
+
+  /* ------------------------------------------------------------ drawing */
+  function draw(app, opts) {
+    const p = app.pal(), s = app.state, sol = SOL, masked = app.masked();
+    const uid = (opts && opts.export) ? 'x' : 's';   // unique ids: the report embeds a second copy
+    const font = esc(p.fontUi), mono = esc(p.fontMono);
+    const W = 700, left = 80, right = 48, pw = W - left - right;
+    const [lo, hi] = T.range(s);
+    const X = x => left + (x - lo) / (hi - lo) * pw;
+    const out = [];
+    const txt = (x, y, str, o) => '<text x="' + r1(x) + '" y="' + r1(y) + '" font-family="' + ((o && o.mono) ? mono : font) + '" font-size="' + ((o && o.size) || 12) + '"' +
+      ((o && o.weight) ? ' font-weight="' + o.weight + '"' : '') + ' fill="' + ((o && o.fill) || p.ink) + '"' + ((o && o.anchor) ? ' text-anchor="' + o.anchor + '"' : '') + '>' + esc(str) + '</text>';
+    const line = (x1, y1, x2, y2, stroke, w, dash) => '<line x1="' + r1(x1) + '" y1="' + r1(y1) + '" x2="' + r1(x2) + '" y2="' + r1(y2) + '" stroke="' + stroke + '" stroke-width="' + (w || 1) + '"' + (dash ? ' stroke-dasharray="' + dash + '"' : '') + '/>';
+    const arrow = (x, yTail, yHead, color, w) => {
+      const dir = yHead > yTail ? 1 : -1;
+      return line(x, yTail, x, yHead - dir * 8, color, w || 2.5) + '<polygon points="' + r1(x - 6) + ',' + r1(yHead - dir * 10) + ' ' + r1(x + 6) + ',' + r1(yHead - dir * 10) + ' ' + r1(x) + ',' + r1(yHead) + '" fill="' + color + '"/>';
+    };
+    let y = 0;
+    const panels = [];
+
+    // 1. Shaft with supports, loads, reactions and torque markers.
+    const shH = 178, shTop = y, shaftY = shTop + 92, shaftH = 16;
+    panels.push({ id: 'shaft', top: shTop, bottom: shTop + shH });
+    out.push(txt(12, shTop + 20, (s.mode === 'shaft' ? 'Shaft' : 'Beam') + ' (L = ' + app.fmt(s.L) + ' mm' + (s.mode === 'shaft' ? ', d = ' + app.fmt(s.d) + ' mm' : '') + ')', { weight: 700, size: 13 }));
+    out.push('<rect x="' + r1(X(lo)) + '" y="' + shaftY + '" width="' + r1(X(hi) - X(lo)) + '" height="' + shaftH + '" fill="' + p.steel + '" stroke="' + p.ink + '" stroke-width="1.5"/>');
+    if (s.mode === 'shaft' && sol && sol.T > 0) {
+      // Torque-carrying length: a brass band with hatching inside the shaft outline.
+      const a = Math.min(s.tFrom, s.tTo), b = Math.max(s.tFrom, s.tTo), w = Math.max(2, X(b) - X(a));
+      out.push('<pattern id="' + uid + 'tqh" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="6" stroke="' + p.brassInk + '" stroke-width="1.2"/></pattern>');
+      out.push('<rect x="' + r1(X(a)) + '" y="' + (shaftY + 1) + '" width="' + r1(w) + '" height="' + (shaftH - 2) + '" fill="url(#' + uid + 'tqh)" opacity="0.7"/>');
+    }
+    // supports
+    const supY = shaftY + shaftH;
+    out.push('<polygon points="' + r1(X(0)) + ',' + supY + ' ' + r1(X(0) - 11) + ',' + (supY + 20) + ' ' + r1(X(0) + 11) + ',' + (supY + 20) + '" fill="' + p.paper + '" stroke="' + p.ink + '" stroke-width="1.5"/>');
+    out.push(line(X(0) - 15, supY + 23, X(0) + 15, supY + 23, p.ink, 1.5));
+    out.push('<circle cx="' + r1(X(s.L)) + '" cy="' + (supY + 10) + '" r="10" fill="' + p.paper + '" stroke="' + p.ink + '" stroke-width="1.5"/>');
+    out.push(line(X(s.L) - 15, supY + 23, X(s.L) + 15, supY + 23, p.ink, 1.5));
+    out.push(txt(X(0) - 26, supY + 14, 'A', { weight: 700, anchor: 'end' }));
+    out.push(txt(X(s.L) + 26, supY + 14, 'B', { weight: 700 }));
+    // reactions
+    if (sol) {
+      [[0, sol.RA, 'A'], [s.L, sol.RB, 'B']].forEach(([x, R]) => {
+        if (Math.abs(R) < 1e-9) return;
+        const yb = supY + 62, yt = supY + 28;
+        out.push(R > 0 ? arrow(X(x), yb, yt, p.ink, 2) : arrow(X(x), yt, yb, p.ink, 2));
+        const atB = x === s.L;
+        out.push(txt(X(x) + (atB ? -9 : 9), supY + 58, masked ? 'R = ?' : 'R = ' + app.fmt(R) + ' N' + (R < 0 ? ' (pulled)' : ''), { size: 12, fill: p.inkSoft, anchor: atB ? 'end' : 'start' }));
+      });
+    }
+    // torque markers
+    if (s.mode === 'shaft') {
+      out.push(txt(X(s.tFrom), shaftY - 8, 'T in', { size: 11, fill: p.brassInk, anchor: 'middle' }));
+      out.push(txt(X(s.tTo), shaftY + shaftH + 13, 'T out', { size: 11, fill: p.brassInk, anchor: 'middle' }));
+    }
+    // loads (draggable)
+    s.loads.forEach(l => {
+      const x = X(l.a), sel = ui.sel === l.id, col = sel ? p.dykem : p.fail;
+      const down = l.P >= 0;
+      const top = shTop + 34, bot = shaftY - 2;
+      out.push('<g class="ldh" data-load="' + l.id + '">' +
+        '<rect x="' + r1(x - 14) + '" y="' + (top - 4) + '" width="28" height="' + (bot - top + 8) + '" fill="transparent"/>' +
+        (down ? arrow(x, top, bot, col, sel ? 3.5 : 2.5) : arrow(x, bot, top, col, sel ? 3.5 : 2.5)) +
+        (sel ? '<circle cx="' + r1(x) + '" cy="' + r1(down ? top : bot) + '" r="5" fill="' + p.paper + '" stroke="' + col + '" stroke-width="2"/>' : '') + '</g>');
+      const lx = x + 9, anchor = x > left + pw * 0.75 ? 'end' : 'start';
+      out.push(txt(anchor === 'end' ? x - 9 : lx, top + 8, l.label + ': ' + app.fmt(Math.abs(l.P)) + ' N' + (down ? '' : ' up'), { size: 12, fill: col, anchor, weight: sel ? 700 : 400 }));
+    });
+    y += shH;
+
+    const diagTop = y;
+    const note = !sol ? 'Fix the highlighted input to see the diagrams.' : null;
+    if (note) {
+      out.push(txt(W / 2, y + 30, note, { anchor: 'middle', fill: p.fail, weight: 600 }));
+      y += 50;
+    } else {
+      const zeroFill = (id, pts, y0, yOf, top, h) => {
+        // Filled area between the curve and zero, positive and negative shaded differently.
+        const poly = pts.map(q => r1(X(q.x)) + ',' + r1(yOf(q.v))).join(' ');
+        const area = r1(X(pts[0].x)) + ',' + r1(y0) + ' ' + poly + ' ' + r1(X(pts[pts.length - 1].x)) + ',' + r1(y0);
+        id = uid + id;
+        return '<clipPath id="' + id + 'p"><rect x="0" y="' + top + '" width="' + W + '" height="' + r1(y0 - top) + '"/></clipPath>' +
+          '<clipPath id="' + id + 'n"><rect x="0" y="' + r1(y0) + '" width="' + W + '" height="' + r1(top + h - y0) + '"/></clipPath>' +
+          '<polygon points="' + area + '" fill="' + p.posFill + '" clip-path="url(#' + id + 'p)"/>' +
+          '<polygon points="' + area + '" fill="' + p.negFill + '" clip-path="url(#' + id + 'n)"/>';
+      };
+      const panel = (id, title, h, series, opts2) => {
+        const top = y + 22, ph = h - 34;
+        let vmin = Math.min(0, ...series.map(q => q.v)), vmax = Math.max(0, ...series.map(q => q.v));
+        if (vmax - vmin < 1e-12) { vmax = 1; vmin = -1; }
+        const pad = (vmax - vmin) * 0.12; vmax += pad; vmin -= pad;
+        const yOf = v => top + (vmax - v) / (vmax - vmin) * ph;
+        const y0 = yOf(0);
+        out.push('<g class="diag" data-panel="' + id + '">');
+        out.push('<rect x="' + left + '" y="' + top + '" width="' + pw + '" height="' + ph + '" fill="transparent"/>');
+        out.push(txt(12, y + 14, title, { weight: 700, size: 13 }));
+        out.push(zeroFill(id, series, y0, yOf, top, ph));
+        out.push('<polyline points="' + series.map(q => r1(X(q.x)) + ',' + r1(yOf(q.v))).join(' ') + '" fill="none" stroke="' + (opts2.stroke || p.dykem) + '" stroke-width="2"/>');
+        out.push(line(left, y0, left + pw, y0, p.inkSoft, 1));
+        out.push(txt(left - 8, top + 10, '+', { anchor: 'end', size: 14, weight: 700, fill: p.inkSoft }));
+        out.push(txt(left - 8, top + ph - 2, '−', { anchor: 'end', size: 14, weight: 700, fill: p.inkSoft }));
+        if (opts2.after) out.push(opts2.after(yOf, top, ph));
+        out.push('</g>');
+        panels.push({ id, top: y, bottom: y + h, yOf });
+        y += h;
+      };
+      // 2. Shear V (N)
+      const Vpts = sol.r.shearPts.map(q => ({ x: q.x * 1000, v: q.V }));
+      panel('V', 'Shear V (N)', 126, Vpts, {
+        after: (yOf) => {
+          if (masked) return '';
+          const lab = []; const seen = new Set();
+          const jumps = [0, s.L].concat(s.loads.map(l => l.a)).filter(x => x >= lo && x <= hi).sort((a, b) => a - b);
+          jumps.forEach(x => {
+            if (seen.has(x)) return; seen.add(x);
+            const st = T.station(sol, x); const v = st.Vr;
+            if (Math.abs(v) < 1e-9) return;
+            lab.push(txt(Math.min(X(x) + 5, left + pw - 30), yOf(v) + (v >= 0 ? -5 : 14), (v > 0 ? '+' : '') + app.fmt(v), { size: 11, fill: p.ink, mono: true }));
+          });
+          return lab.join('');
+        },
+      });
+      // 3. Bending moment M (N·m)
+      const Mpts = sol.r.xs.map((x, i) => ({ x: x * 1000, v: sol.r.M[i] }));
+      panel('M', 'Bending moment M (N·m), sagging +', 136, Mpts, {
+        stroke: p.fail,
+        after: (yOf) => {
+          if (masked) return '';
+          const px = X(sol.MmaxX), py = yOf(sol.Mmax);
+          const anchor = px > left + pw * 0.7 ? 'end' : 'start';
+          return '<circle cx="' + r1(px) + '" cy="' + r1(py) + '" r="4.5" fill="' + p.fail + '"/>' +
+            txt(px + (anchor === 'end' ? -8 : 8), py + (sol.Mmax >= 0 ? -6 : 16), '|M|max ' + app.fmt(sol.MmaxAbs) + ' N·m at ' + app.fmt(sol.MmaxX) + ' mm', { weight: 700, size: 12, anchor });
+        },
+      });
+      // 4. Torque T (N·m)
+      if (s.mode === 'shaft') {
+        const a = Math.min(s.tFrom, s.tTo), b = Math.max(s.tFrom, s.tTo), Tv = sol.T;
+        const pts = [{ x: lo, v: a > lo ? 0 : Tv }];
+        if (a > lo) pts.push({ x: a, v: 0 }, { x: a, v: Tv });
+        pts.push({ x: b, v: Tv });
+        if (b < hi) pts.push({ x: b, v: 0 });
+        pts.push({ x: hi, v: b < hi ? 0 : Tv });
+        panel('T', 'Torque T (N·m)', 88, pts, {
+          stroke: p.brassInk,
+          after: (yOf) => Tv > 0 ? txt((X(a) + X(b)) / 2, yOf(Tv) - 5, app.fmt(Tv) + ' N·m', { anchor: 'middle', size: 11.5, fill: p.brassInk, mono: true }) : '',
+        });
+        // 5. Safety factor along the shaft
+        const nArr = sol.r.nArr, target = s.nTarget;
+        const finite = nArr.filter(v => isFinite(v));
+        const nTop = Math.max(target * 1.6, sol.n ? Math.min(Math.max(...finite, target), sol.n * 3) : target * 2);
+        const top = y + 22, ph = 92;
+        const yOf = v => top + (1 - Math.min(v, nTop) / nTop) * ph;
+        out.push('<g class="diag" data-panel="n">');
+        out.push('<rect x="' + left + '" y="' + top + '" width="' + pw + '" height="' + ph + '" fill="transparent"/>');
+        out.push(txt(12, y + 14, 'Safety factor n along the shaft', { weight: 700, size: 13 }));
+        out.push('<rect x="' + left + '" y="' + r1(yOf(target)) + '" width="' + pw + '" height="' + r1(top + ph - yOf(target)) + '" fill="' + p.negFill + '" opacity="0.6"/>');
+        out.push(txt(left + 6, top + ph - 5, 'below target: fails', { size: 10.5, fill: p.inkSoft }));
+        if (finite.length) {
+          const pts = sol.r.xs.map((x, i) => r1(X(x * 1000)) + ',' + r1(yOf(isFinite(nArr[i]) ? nArr[i] : nTop))).join(' ');
+          out.push('<polyline points="' + pts + '" fill="none" stroke="' + p.ink + '" stroke-width="2"/>');
+        } else out.push(txt(W / 2, top + ph / 2, 'not defined: no load', { anchor: 'middle', fill: p.inkSoft }));
+        out.push(line(left, yOf(target), left + pw, yOf(target), p.pass, 1.5, '6 4'));
+        out.push(txt(left + pw + 4, yOf(target) + 4, 'n = ' + app.fmt(target), { size: 11, fill: p.pass }));
+        out.push(line(left, top + ph, left + pw, top + ph, p.inkSoft, 1));
+        out.push(txt(left - 8, top + 10, masked ? '' : '≥' + app.fmt(nTop), { anchor: 'end', size: 10.5, fill: p.inkSoft }));
+        out.push(txt(left - 8, top + ph, '0', { anchor: 'end', size: 10.5, fill: p.inkSoft }));
+        if (!masked && sol.crit) {
+          const cx = X(sol.crit.x), cy = yOf(sol.n);
+          out.push('<circle cx="' + r1(cx) + '" cy="' + r1(cy) + '" r="5" fill="' + (sol.pass ? p.pass : p.fail) + '"/>');
+          out.push(txt(cx + (cx > left + pw * 0.7 ? -8 : 8), cy - 7, 'critical: n = ' + app.fmt(sol.n) + ' at ' + app.fmt(sol.crit.x) + ' mm', { size: 11.5, weight: 700, anchor: cx > left + pw * 0.7 ? 'end' : 'start', fill: sol.pass ? p.pass : p.fail }));
+        }
+        out.push('</g>');
+        panels.push({ id: 'n', top: y, bottom: y + 124 });
+        y += 124;
+      }
+      // 6. Deflection (extension)
+      if (sol.defl) {
+        const d = sol.r.deflection, top = y + 22, ph = 70, mid = top + ph / 2;
+        const pxPerMm = pw / (hi - lo);
+        const raw = sol.defl.max > 0 ? 28 / (sol.defl.max * pxPerMm) : 1;
+        const mag = Math.pow(10, Math.floor(Math.log10(raw))), m = raw / mag;
+        const factor = (m >= 5 ? 5 : m >= 2 ? 2 : 1) * mag;
+        out.push('<g class="diag" data-panel="y">');
+        out.push(txt(12, y + 14, 'Deflected shape (drawn ' + app.fmt(factor) + '× actual)', { weight: 700, size: 13 }));
+        out.push(line(left, mid, left + pw, mid, p.inkSoft, 1, '3 3'));
+        const dp = [];
+        for (let i = 0; i < d.xs.length; i += 8) dp.push(r1(X(d.xs[i] * 1000)) + ',' + r1(mid - d.y[i] * 1000 * factor * pxPerMm));
+        const iz = d.xs.length - 1; dp.push(r1(X(d.xs[iz] * 1000)) + ',' + r1(mid - d.y[iz] * 1000 * factor * pxPerMm));
+        out.push('<polyline points="' + dp.join(' ') + '" fill="none" stroke="' + p.dykem + '" stroke-width="2.5"/>');
+        out.push('<circle cx="' + r1(X(sol.defl.x)) + '" cy="' + r1(mid - sol.defl.signed * factor * pxPerMm) + '" r="4" fill="' + p.dykem + '"/>');
+        const dx = X(sol.defl.x), dEnd = dx > left + pw * 0.7;
+        out.push(txt(dx + (dEnd ? -8 : 8), mid - sol.defl.signed * factor * pxPerMm + (sol.defl.signed < 0 ? 16 : -8), 'max ' + app.fmt(sol.defl.max) + ' mm', { size: 11.5, fill: p.dykem, anchor: dEnd ? 'end' : 'start' }));
+        out.push('</g>');
+        panels.push({ id: 'y', top: y, bottom: y + 104 });
+        y += 104;
+      }
+      // station cursor
+      if (!(opts && opts.export) && ui.station !== null && ui.station >= lo && ui.station <= hi) out.push(line(X(ui.station), diagTop + 18, X(ui.station), y - 8, p.dykem, 1.5, '5 4'));
+    }
+    // shared x axis (mm)
+    const step = niceStep(hi - lo);
+    out.push(line(left, y + 4, left + pw, y + 4, p.ink, 1));
+    for (let v = Math.ceil(lo / step) * step; v <= hi + 1e-9; v += step) {
+      out.push(line(X(v), y + 4, X(v), y + 9, p.ink, 1));
+      out.push(txt(X(v), y + 22, app.fmt(v), { anchor: 'middle', size: 11, fill: p.inkSoft }));
+    }
+    out.push(txt(left + pw, y + 38, 'x (mm) from support A', { anchor: 'end', size: 11, fill: p.inkSoft }));
+    y += 46;
+    for (const b of [0, s.L]) out.push(line(X(b), shaftY + shaftH, X(b), y - 42, p.line, 1, '2 4'));
+
+    const H = Math.ceil(y);
+    LAYOUT = { W, H, left, pw, lo, hi, panels, shaftTop: shTop, shaftBottom: shTop + shH };
+    const svg = '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" width="' + W + '" height="' + H + '"' +
+      (opts && opts.export ? '' : ' id="sbSvg" tabindex="0" role="application" aria-roledescription="shaft drawing" aria-label="Shaft drawing. Press A to add a load, N or P to select a load, arrow keys to move it, comma and period to move the station readout. Press question mark for all keys." aria-describedby="shDesc"') +
+      '><rect width="' + W + '" height="' + H + '" fill="' + p.paper + '"/>' + out.join('') + '</svg>';
+    return { svg, width: W, height: H };
+  }
+
+  /* ------------------------------------------------------------ pointer and keyboard */
+  function modelX(e) {
+    const svg = $('sbSvg'); if (!svg || !LAYOUT) return null;
+    const rect = svg.getBoundingClientRect();
+    const sx = (e.clientX - rect.left) * LAYOUT.W / rect.width, sy = (e.clientY - rect.top) * LAYOUT.H / rect.height;
+    return { x: LAYOUT.lo + (sx - LAYOUT.left) / LAYOUT.pw * (LAYOUT.hi - LAYOUT.lo), sy };
+  }
+  function clampLoadX(app, x) {
+    const s = app.state, [lo, hi] = T.range(s);
+    const c = Math.min(hi, Math.max(lo, x));
+    if (c !== x && !s.overhang && !ui.hintOnce) { ui.hintOnce = true; app.toast('The load stops at the support. Turn on overhangs to place a load beyond a support.'); }
+    return Math.round(c);
+  }
+  function wireDrawing(app) {
+    const card = $('sbDraw');
+    card.addEventListener('pointerdown', e => {
+      const m = modelX(e); if (!m) return;
+      const g = e.target.closest('[data-load]');
+      if (ui.placing && m.sy >= LAYOUT.shaftTop && m.sy <= LAYOUT.shaftBottom) { e.preventDefault(); ui.placing = false; addLoad(app, clampLoadX(app, m.x)); return; }
+      if (g) {
+        e.preventDefault(); ui.sel = +g.dataset.load; ui.drag = ui.sel; ui.hintOnce = false;
+        card.setPointerCapture(e.pointerId); app.render(); return;
+      }
+      const d = e.target.closest('.diag');
+      if (d) { ui.station = Math.round(Math.min(LAYOUT.hi, Math.max(LAYOUT.lo, m.x))); app.render(); }
+    });
+    card.addEventListener('pointermove', e => {
+      if (ui.drag === null) return;
+      const m = modelX(e), l = byId(app, ui.drag); if (!m || !l) return;
+      const nx = clampLoadX(app, m.x);
+      if (nx !== l.a) { l.a = nx; app.changed(); }
+    });
+    const end = e => { if (ui.drag !== null) { ui.drag = null; try { card.releasePointerCapture(e.pointerId); } catch (x) { } } };
+    card.addEventListener('pointerup', end); card.addEventListener('pointercancel', end);
+    card.addEventListener('keydown', e => {
+      if (e.target.id !== 'sbSvg') return;
+      const s = app.state, l = byId(app, ui.sel), big = e.shiftKey ? 10 : 1;
+      const k = e.key;
+      if (k === 'a' || k === 'A') { e.preventDefault(); addLoad(app, Math.round(s.L / 2)); }
+      else if (k === 'n' || k === 'N' || k === 'p' || k === 'P') {
+        e.preventDefault(); if (!s.loads.length) return;
+        const i = s.loads.findIndex(x => x.id === ui.sel), step = (k === 'n' || k === 'N') ? 1 : -1;
+        ui.sel = s.loads[(i + step + s.loads.length) % s.loads.length].id; app.render(); focusSvg();
+        const c = byId(app, ui.sel); app.announce(c.label + ' selected, ' + app.fmt(c.P) + ' N at ' + app.fmt(c.a) + ' mm.');
+      }
+      else if ((k === 'ArrowLeft' || k === 'ArrowRight') && l) { e.preventDefault(); l.a = clampLoadX(app, l.a + (k === 'ArrowRight' ? big : -big)); app.changed(); focusSvg(); app.announce(l.label + ' at ' + app.fmt(l.a) + ' mm.'); }
+      else if ((k === 'ArrowUp' || k === 'ArrowDown') && l) { e.preventDefault(); l.P = Math.max(-20000, Math.min(20000, l.P + (k === 'ArrowUp' ? 10 : -10) * big)); app.changed(); focusSvg(); app.announce(l.label + ' ' + app.fmt(l.P) + ' N.'); }
+      else if ((k === 'Delete' || k === 'Backspace') && l) { e.preventDefault(); removeLoad(app, l.id); focusSvg(); }
+      else if (k === ',' || k === '.' || k === '<' || k === '>') {
+        e.preventDefault(); const [lo, hi] = T.range(s);
+        ui.station = Math.min(hi, Math.max(lo, (ui.station === null ? s.L / 2 : ui.station) + ((k === '.' || k === '>') ? big : -big)));
+        app.render(); focusSvg(); app.announce(stationText(app));
+      }
+      else if (k === 'Escape' && ui.placing) { ui.placing = false; app.render(); }
+    });
+  }
+  function focusSvg() { const s = $('sbSvg'); if (s) s.focus({ preventScroll: true }); }
+
+  /* ------------------------------------------------------------ loads list */
+  function addLoad(app, a) {
+    const s = app.state;
+    if (s.loads.length >= T.MAX_LOADS) { app.toast('Version 1 allows up to ' + T.MAX_LOADS + ' loads.'); return; }
+    const id = s.nextId++;
+    s.loads.push({ id, label: 'Load ' + id, P: 1000, a });
+    ui.sel = id;
+    buildLoads(app); app.changed();
+    app.announce('Added Load ' + id + ' at ' + app.fmt(a) + ' mm. Arrow keys move it.');
+  }
+  function removeLoad(app, id) {
+    const s = app.state, l = byId(app, id);
+    s.loads = s.loads.filter(x => x.id !== id);
+    if (ui.sel === id) ui.sel = s.loads.length ? s.loads[0].id : null;
+    buildLoads(app); app.changed();
+    if (l) app.announce('Removed ' + l.label + '.');
+  }
+  function posCheck(v, app) {
+    const s = app.state, [lo, hi] = T.range(s);
+    if (v < lo || v > hi) return 'Load position must be between ' + U.fmtSig(lo, 4).replace('−', '-') + ' and ' + U.fmtSig(hi, 4) + ' mm.' + (s.overhang ? '' : ' Turn on overhangs to place a load beyond a support.');
+    return null;
+  }
+  function buildLoads(app) {
+    const box = $('sbLoads');
+    app.removeFields(box);
+    box.innerHTML = '';
+    app.state.loads.forEach(l => {
+      const card = document.createElement('div');
+      card.className = 'itemcard ldcard' + (ui.sel === l.id ? ' sel' : '');
+      card.dataset.id = l.id;
+      card.innerHTML = '<div class="ih"><input type="text" maxlength="20" aria-label="Load name" value="' + esc(l.label) + '"><button class="btn small danger rm" type="button" aria-label="Remove ' + esc(l.label) + '">✕</button></div>';
+      box.appendChild(card);
+      const name = card.querySelector('input');
+      name.addEventListener('input', () => { l.label = name.value.slice(0, 20) || 'Load'; app.changed({ keepPrediction: true }); });
+      card.querySelector('.rm').addEventListener('click', () => removeLoad(app, l.id));
+      card.addEventListener('focusin', () => { if (ui.sel !== l.id) { ui.sel = l.id; app.render(); } });
+      app.numField(card, { id: 'ldP' + l.id, label: 'Force (+ down)', name: 'Load', unit: 'N', min: -20000, max: 20000, step: 10, get: () => l.P, set: (a, v) => { l.P = v; } });
+      app.numField(card, { id: 'lda' + l.id, label: 'Position from A', name: 'Load position', unit: 'mm', step: 1, check: posCheck, get: () => l.a, set: (a, v) => { l.a = v; } });
+    });
+    $('sbAdd').disabled = app.state.loads.length >= T.MAX_LOADS;
+  }
+
+  /* ------------------------------------------------------------ import (§5.5) */
+  let impDlg = null;
+  function importShaftLoads(app, text, name) {
+    const file = Schemas.readShaftLoads(text);
+    const s = app.state, n = Math.min(file.value.loads.length, T.MAX_LOADS);
+    const pos = T.defaultStations(n, s.L);
+    if (!impDlg) { impDlg = document.createElement('dialog'); impDlg.className = 'sh-dlg'; impDlg.id = 'sbImport'; impDlg.setAttribute('aria-labelledby', 'sbImportT'); document.body.appendChild(impDlg); }
+    impDlg.innerHTML = '<div class="dlg-h"><h2 id="sbImportT">Import shaft loads</h2><button class="btn small" data-close type="button">Cancel</button></div><div class="dlg-b">' +
+      '<p>' + esc(file.value.loads.length) + ' load' + (file.value.loads.length === 1 ? '' : 's') + ' found in <strong>' + esc(name || 'the file') + '</strong> from the ' + esc(file.value.source) + '. Choose where each one sits along the shaft, measured from support A.</p>' +
+      (file.multiPlane ? '<p class="note warn" id="sbImpWarn">' + esc(T.MULTIPLANE) + '</p>' : '') +
+      file.warnings.map(w => '<p class="note warn">' + esc(w) + '</p>').join('') +
+      '<table class="imp-table"><tr><th>Load</th><th>Force</th><th>Direction</th><th>Torque</th><th>Position (mm)</th></tr>' +
+      file.value.loads.slice(0, n).map((l, i) => '<tr><td>' + esc(l.label) + '</td><td>' + app.fmtU(l.magnitude, 'N') + '</td><td>' + app.fmt(l.angleDeg) + '°</td><td>' + (l.torque === null ? '—' : app.fmtU(l.torque, 'N·m')) + '</td><td><input id="sbImpPos' + i + '" inputmode="decimal" value="' + pos[i] + '" aria-label="Position of ' + esc(l.label) + ' in mm"></td></tr>').join('') + '</table>' +
+      '<label class="chk"><input type="checkbox" id="sbImpReplace" checked> Replace the loads already on the shaft</label>' +
+      '<p class="note">Loads are placed by their magnitude, pushing down. Flip a sign afterwards if a load pushes up.</p>' +
+      '<p class="note warn" id="sbImpErr" hidden></p>' +
+      '<div class="btnrow"><button class="btn primary" id="sbImpGo" type="button">Place loads</button></div></div>';
+    impDlg.querySelector('[data-close]').addEventListener('click', () => impDlg.close());
+    impDlg.querySelector('#sbImpGo').addEventListener('click', () => {
+      const [lo, hi] = T.range(s), vals = [];
+      for (let i = 0; i < n; i++) {
+        const v = U.parseNumber(impDlg.querySelector('#sbImpPos' + i).value);
+        if (!isFinite(v) || v < lo || v > hi) { const e = impDlg.querySelector('#sbImpErr'); e.hidden = false; e.textContent = 'Each position must be between ' + lo + ' and ' + hi + ' mm.'; return; }
+        vals.push(v);
+      }
+      const notes = T.importLoads(s, file, vals, impDlg.querySelector('#sbImpReplace').checked);
+      s.importNotes = notes;
+      ui.sel = s.loads.length ? s.loads[s.loads.length - 1].id : null;
+      impDlg.close(); buildLoads(app); app.refreshFields(); app.changed();
+      app.toast('Placed ' + vals.length + ' imported load' + (vals.length === 1 ? '' : 's') + '.');
+    });
+    impDlg.showModal();
+  }
+
+  /* ------------------------------------------------------------ results */
+  function stationText(app) {
+    if (!SOL || ui.station === null) return 'Click a diagram, or use the slider, to read values at a station.';
+    if (app.masked()) return 'x = ' + app.fmt(ui.station) + ' mm. Values are hidden until you check your prediction.';
+    const q = T.station(SOL, ui.station), s = app.state;
+    const V = Math.abs(q.Vl - q.Vr) > 1e-9 ? app.fmt(q.Vl) + ' N left, ' + app.fmt(q.Vr) + ' N right' : app.fmt(q.Vr) + ' N';
+    return 'x = ' + app.fmt(ui.station) + ' mm · V = ' + V + ' · M = ' + app.fmt(q.M) + ' N·m' +
+      (s.mode === 'shaft' ? ' · T = ' + app.fmt(q.T) + ' N·m' : '') + ' · σ = ' + app.fmt(q.sigma) + ' MPa' +
+      (s.mode === 'shaft' ? ' · τ = ' + app.fmt(q.tau) + ' MPa' : '') + ' · n = ' + (q.n === null ? 'not defined: no load here' : app.fmt(q.n));
+  }
+  function results(app) {
+    const s = app.state, sol = SOL, sh = app.show, fu = app.fmtU;
+    if (!sol) { app.el.results.innerHTML = '<div class="sec-h">Results</div><p class="reason">' + esc(app.invalidReason()) + '.</p>'; return; }
+    const c = sol.crit;
+    const rows = [];
+    const row = (k, v, cls) => rows.push('<tr' + (cls ? ' class="' + cls + '"' : '') + '><th>' + k + '</th><td>' + v + '</td></tr>');
+    row('Reactions R<sub>A</sub> / R<sub>B</sub>', sh(esc(fu(sol.RA, 'N')) + ' / ' + esc(fu(sol.RB, 'N'))));
+    row('|M|<sub>max</sub>', sh(esc(fu(sol.MmaxAbs, 'N·m')) + ' at ' + esc(fu(sol.MmaxX, 'mm'))));
+    if (s.mode === 'shaft') row('Torque T', esc(fu(sol.T, 'N·m')));
+    if (c) {
+      rows.push('<tr><th colspan="2" style="padding-top:8px"><strong>At the critical section</strong>' + (app.masked() ? '' : ' (x = ' + esc(fu(c.x, 'mm')) + ')') + '</th></tr>');
+      row('M, T', sh(esc(fu(c.M, 'N·m')) + (s.mode === 'shaft' ? ', ' + esc(fu(c.T, 'N·m')) : '')), 'sub');
+      row('σ (bending)', sh(esc(fu(c.sigma, 'MPa'))), 'sub');
+      if (s.mode === 'shaft') row('τ (torsion)', sh(esc(fu(c.tau, 'MPa'))), 'sub');
+      if (s.rule === 'vonMises') row('σ′ (von Mises)', sh(esc(fu(c.sigmaVM, 'MPa'))), 'sub');
+      else row('τ<sub>max</sub> (Tresca)', sh(esc(fu(c.tauMax, 'MPa'))), 'sub');
+      row('Safety factor n', sh('<span class="verdict ' + (sol.pass ? 'pass' : 'fail') + '">' + esc(app.fmt(sol.n)) + '</span> <span class="reason">' + (sol.pass ? 'meets' : 'below') + ' target ' + esc(app.fmt(s.nTarget)) + '</span>'));
+    } else row('Safety factor n', '<span class="reason">not defined: ' + esc(sol.nReason) + '</span>');
+    row('d for n = ' + esc(app.fmt(s.nTarget)), sol.dReq === null ? '<span class="reason">not defined: no load</span>' : sh(esc(fu(sol.dReq, 'mm'))));
+    if (sol.defl) row('Max deflection', esc(fu(sol.defl.max, 'mm')) + ' at ' + esc(fu(sol.defl.x, 'mm')));
+    const notes = [];
+    if (!app.masked() && (sol.RA < 0 || sol.RB < 0)) notes.push('<p class="note warn">Bearing ' + (sol.RA < 0 ? 'A' : 'B') + (sol.RA < 0 && sol.RB < 0 ? ' and B' : '') + ': this bearing is pulled, not pushed.</p>');
+    if (s.material !== 'custom') notes.push('<p class="note warn">Placeholder material value in use. Replace it with a datasheet or measured value.</p>');
+    if (s.Kb > 1 || s.Kt > 1) notes.push('<p class="note">Shoulders, keyways and holes raise local stress. Factors of 2 or more are typical at keyways. Take values from a reference chart.</p>');
+    (s.importNotes || []).forEach(n => notes.push('<p class="note warn">' + esc(n) + '</p>'));
+    app.el.results.innerHTML = '<div class="sec-h">Results</div><table class="ro">' + rows.join('') + '</table>' +
+      (sol.dReq !== null ? '<div class="btnrow"><button class="btn" id="sbUseD" type="button"' + (app.masked() ? ' disabled' : '') + '>Use this diameter' + (app.masked() ? '' : ' (' + esc(app.fmt(T.roundUpHalf(sol.dReq))) + ' mm)') + '</button></div>' : '') +
+      notes.join('');
+    const use = $('sbUseD');
+    if (use) use.addEventListener('click', () => { s.d = T.roundUpHalf(sol.dReq); app.refreshFields(); app.changed(); app.toast('Diameter set to ' + app.fmt(s.d) + ' mm.'); });
+  }
+
+  /* ------------------------------------------------------------ help */
+  const HELP = {
+    html: '<p>Put bearings and loads on a shaft. The workbench draws the <strong>shear force</strong> and <strong>bending moment</strong> diagrams, the <strong>torque</strong> the shaft carries, the stresses, and the <strong>safety factor</strong> along the shaft. It also finds the <strong>diameter</strong> you need for a target safety factor.</p>' +
+      '<h3>How to use it</h3><ol>' +
+      '<li>Set the span <em>L</em> between support A (a pin) and support B (a roller). Turn on overhangs if a load sits beyond a bearing.</li>' +
+      '<li>Add loads with <strong>+ Add load</strong>, then click the shaft. Drag a load arrow to move it, or type its position. Positive forces push down; negative forces push up.</li>' +
+      '<li>In Shaft mode, enter the torque directly or as power and speed. The torque is carried between the <em>T in</em> and <em>T out</em> stations.</li>' +
+      '<li>Choose the shaft diameter, the material\'s yield strength and your target safety factor.</li>' +
+      '<li>Click any diagram to read the values at that station.</li></ol>' +
+      '<h3>The method</h3><ol>' +
+      '<li><strong>Reactions.</strong> Take moments about A: R<sub>B</sub> = Σ(P·a)/L. Then R<sub>A</sub> = ΣP − R<sub>B</sub>. A negative reaction means that bearing is pulled, not pushed.</li>' +
+      '<li><strong>Shear and moment.</strong> V(x) adds up the forces to the left of x. M(x) adds up their moments about x. The moment is largest where the shear crosses zero, or at a support when there is an overhang.</li>' +
+      '<li><strong>Torque.</strong> T = P/ω, with ω = 2πN/60.</li>' +
+      '<li><strong>Stresses in a solid round shaft.</strong> σ = 32M/(πd³) and τ = 16T/(πd³). Doubling the diameter makes both 8 times smaller, because d is cubed.</li>' +
+      '<li><strong>Safety factor.</strong> The maximum shear stress rule combines them: τ<sub>max</sub> = 16√(M² + T²)/(πd³), and n = S<sub>y</sub>/(2τ<sub>max</sub>). The tool checks every station, because the torque may not reach the point of largest moment.</li></ol>' +
+      '<h3>Extension</h3><p>The extension options add stress concentration factors K<sub>b</sub> and K<sub>t</sub> (keyways, shoulders and holes), the distortion energy (von Mises) rule σ′ = √(σ² + 3τ²), and the deflected shape found by integrating M/(EI) twice. The shape is drawn exaggerated, and the drawing says by how much.</p>' +
+      '<h3>Importing loads</h3><p><strong>Load</strong> (or <strong>Import shaft loads…</strong>) opens a shaft-loads file from the Gear Train Workbench or the Conveyor Designer. You choose where each load sits. Version 1 puts all loads in one plane. If the file\'s loads point in different directions, the tool says so.</p>',
+    units: 'Lengths are in mm and forces in N. Moments show in N·m, and stresses in MPa (1 MPa = 1 N/mm²). 1 N·m = 1000 N·mm. Speed in rpm is multiplied by 2π/60 to get rad/s.',
+    keys: [['Tab to the drawing', 'Then use the keys below'], ['A', 'Add a load at mid-span'], ['N / P', 'Select the next or previous load'], ['← / →', 'Move the selected load 1 mm (Shift: 10 mm)'], ['↑ / ↓', 'Change the selected load by 10 N (Shift: 100 N)'], ['Delete', 'Remove the selected load'], [', / .', 'Move the station readout 1 mm (Shift: 10 mm)'], ['Esc', 'Cancel placing a load']],
+    teacher: '<p>The yield strength and modulus presets are <strong>placeholders</strong>. Replace them with datasheet or measured values for the stock your students use; the readout flags placeholders.</p>' +
+      '<p>Version 1 models one solid round shaft of uniform diameter on a pin and a roller, with loads in one plane. Loads in two perpendicular planes (several gears pushing different ways), stepped and hollow shafts, fatigue and bearing life are left for a later version. When an imported file has loads in different directions the tool shows the warning and uses their magnitudes.</p>' +
+      '<p>Predict first hides R<sub>A</sub>, |M|<sub>max</sub>, the critical safety factor and the required diameter, along with the moment peak label and every value that gives them away.</p>',
+    sources: [
+      { title: 'Optimal Beam, simply supported beam', url: 'https://optimalbeam.com/engineering-guides/simply-supported-beam' },
+      { title: 'Omni Calculator, shaft size', url: 'https://www.omnicalculator.com/physics/shaft-size' },
+      { title: 'Reuven Engineering Tools, shaft design', url: 'https://reuven.tools/tools/shaft-design/' },
+      { title: 'Steltech, combined torsion and bending', url: 'https://steltech.co/en/genel-en/how-to-calculate-combined-torsion-and-bending-in-shafts/' },
+      { title: 'Fiveable, shaft design and analysis', url: 'https://fiveable.me/elements-mechanical-engineering-design/unit-9/shaft-design-analysis/study-guide/AKaXbq1Ti6ao3oRz' },
+      { title: 'Engineering Hulk, column buckling (I = πD⁴/64 for a solid circle)', url: 'https://engineeringhulk.com/mechanical/strength-of-materials/column-buckling/' },
+      { title: 'OpenStax College Physics 2e, 9.2 The second condition for equilibrium', url: 'https://openstax.org/books/college-physics-2e/pages/9-2-the-second-condition-for-equilibrium' },
+      { title: 'OpenStax University Physics Vol. 1, 10.8 Work and power for rotational motion', url: 'https://openstax.org/books/university-physics-volume-1/pages/10-8-work-and-power-for-rotational-motion' },
+    ],
+  };
+
+  /* ------------------------------------------------------------ the tool */
+  Shell.create({
+    tool: 'Shaft and Beam Workbench', repo: 'ShaftBeamWorkbench', slug: 'shaft-beam-workbench', version: VERSION, schemaVersion: 1,
+    subtitle: 'Engineering education · Shafts and beams',
+    defaultState: T.defaultState,
+    modes: { label: 'Mode', options: [{ id: 'shaft', label: 'Shaft' }, { id: 'beam', label: 'Beam' }], get: app => app.state.mode, set: (app, m) => { app.state.mode = m; } },
+    contextLabel: app => 'Sandbox (' + (app.state.mode === 'shaft' ? 'Shaft' : 'Beam') + ' mode)',
+    help: HELP,
+    imports: { 'shaft-loads': importShaftLoads },
+    afterLoad(app) {
+      const s = app.state;
+      if (!Array.isArray(s.loads)) s.loads = [];
+      s.nextId = Math.max(s.nextId || 1, ...s.loads.map(l => l.id + 1), 1);
+      ui.sel = s.loads.length ? s.loads[0].id : null;
+      ui.station = null;
+      if ($('sbLoads')) buildLoads(app);
+    },
+    build(app) {
+      const I = app.el.inputs, F = T.FIELDS;
+      const sec = (html, id) => { const d = document.createElement('div'); if (id) d.id = id; d.innerHTML = html; I.appendChild(d); return d; };
+      // Supports and shaft
+      const sup = sec('<div class="sec-h">Supports and shaft</div>');
+      app.numField(sup, Object.assign({ id: 'sbL', label: 'Span L', step: 1, get: a => a.state.L, set: (a, v) => { a.state.L = v; } }, F.L));
+      app.checkField(sup, { id: 'sbOv', label: 'Overhangs beyond the supports', get: a => a.state.overhang, set: (a, v) => { a.state.overhang = v; } });
+      const ov = sec('', 'sbOvBox'); sup.appendChild(ov);
+      app.numField(ov, Object.assign({ id: 'sbOL', label: 'Left overhang', step: 1, max: a => a.state.L, get: a => a.state.oL, set: (a, v) => { a.state.oL = v; } }, F.oL));
+      app.numField(ov, Object.assign({ id: 'sbOR', label: 'Right overhang', step: 1, max: a => a.state.L, get: a => a.state.oR, set: (a, v) => { a.state.oR = v; } }, F.oR));
+      app.numField(sup, Object.assign({ id: 'sbD', label: 'Diameter d', step: 0.5, get: a => a.state.d, set: (a, v) => { a.state.d = v; } }, F.d));
+      app.selectField(sup, { id: 'sbMat', label: 'Material', options: T.MATERIALS.map(m => [m.id, m.label + (m.Sy ? ' (' + m.Sy + ' MPa)' : '')]), get: a => a.state.material, set: (a, v) => { const m = T.MATERIALS.find(x => x.id === v); a.state.material = v; if (m.Sy) { a.state.Sy = m.Sy; a.state.E = m.E; a.refreshFields(); } } });
+      app.numField(sup, Object.assign({ id: 'sbSy', label: 'Yield strength S<sub>y</sub>', step: 10, get: a => a.state.Sy, set: (a, v) => { if (v !== a.state.Sy) a.state.material = 'custom'; a.state.Sy = v; } }, F.Sy));
+      app.numField(sup, Object.assign({ id: 'sbN', label: 'Target safety factor n', step: 0.1, get: a => a.state.nTarget, set: (a, v) => { a.state.nTarget = v; } }, F.nTarget));
+      // Loads
+      const ld = sec('<div class="sec-h">Loads</div><div id="sbLoads"></div><div class="btnrow"><button class="btn" id="sbAdd" type="button">+ Add load</button><button class="btn" id="sbImp" type="button">Import shaft loads…</button></div><p class="note">Positive forces push down; negative forces push up. Up to ' + T.MAX_LOADS + ' loads.</p>');
+      $('sbAdd').addEventListener('click', () => { ui.placing = true; app.render(); app.announce('Click the shaft to place the new load. Press Escape to cancel.'); });
+      $('sbImp').addEventListener('click', () => app.openFile());
+      // Torque
+      const tq = sec('<div class="sec-h">Torque</div>', 'sbTq');
+      app.selectField(tq, { id: 'sbTE', label: 'Enter torque as', options: [['power', 'Power and speed'], ['torque', 'Torque']], get: a => a.state.torqueEntry, set: (a, v) => { a.state.torqueEntry = v; } });
+      const pw = sec('', 'sbPW'); tq.appendChild(pw);
+      app.numField(pw, Object.assign({ id: 'sbP', label: 'Power P', step: 10, get: a => a.state.P, set: (a, v) => { a.state.P = v; } }, F.power));
+      app.numField(pw, Object.assign({ id: 'sbNrpm', label: 'Speed N', step: 10, get: a => a.state.N, set: (a, v) => { a.state.N = v; } }, F.N));
+      const td = sec('', 'sbTD'); tq.appendChild(td);
+      app.numField(td, Object.assign({ id: 'sbT', label: 'Torque T', step: 0.1, get: a => a.state.T, set: (a, v) => { a.state.T = v; } }, F.T));
+      const stCheck = (v, a) => { const [lo, hi] = T.range(a.state); return (v < lo || v > hi) ? 'Station must be between ' + lo + ' and ' + hi + ' mm.' : null; };
+      app.numField(tq, { id: 'sbTin', label: 'T in at', name: 'Station', unit: 'mm', step: 1, check: stCheck, get: a => a.state.tFrom, set: (a, v) => { a.state.tFrom = v; a.state.tAuto = false; } });
+      app.numField(tq, { id: 'sbTout', label: 'T out at', name: 'Station', unit: 'mm', step: 1, check: stCheck, get: a => a.state.tTo, set: (a, v) => { a.state.tTo = v; a.state.tAuto = false; } });
+      sec('<p class="note" id="sbTAuto">T out follows the heaviest load until you set it.</p>').id = 'sbTAutoBox'; tq.appendChild($('sbTAutoBox'));
+      // Extension
+      const ex = sec('<div class="sec-h">Extension</div>');
+      app.checkField(ex, { id: 'sbExt', label: 'Show extension options', get: a => a.state.extension, set: (a, v) => { a.state.extension = v; if (!v) { a.state.rule = 'tresca'; a.state.deflection = false; a.state.Kb = 1; a.state.Kt = 1; a.refreshFields(); } } });
+      const exb = sec('', 'sbExtBox'); ex.appendChild(exb);
+      app.selectField(exb, { id: 'sbRule', label: 'Failure rule', options: [['tresca', 'Maximum shear (Tresca)'], ['vonMises', 'Distortion energy (von Mises)']], get: a => a.state.rule, set: (a, v) => { a.state.rule = v; } });
+      app.numField(exb, Object.assign({ id: 'sbKb', label: 'K<sub>b</sub> (bending)', name: 'K<sub>b</sub>', step: 0.1, get: a => a.state.Kb, set: (a, v) => { a.state.Kb = v; } }, F.K, { name: 'Kb' }));
+      app.numField(exb, Object.assign({ id: 'sbKt', label: 'K<sub>t</sub> (torsion)', step: 0.1, get: a => a.state.Kt, set: (a, v) => { a.state.Kt = v; } }, F.K, { name: 'Kt' }));
+      app.checkField(exb, { id: 'sbDef', label: 'Show the deflected shape', get: a => a.state.deflection, set: (a, v) => { a.state.deflection = v; } });
+      app.numField(exb, Object.assign({ id: 'sbE', label: 'Elastic modulus E', step: 1, get: a => a.state.E, set: (a, v) => { if (v !== a.state.E) a.state.material = 'custom'; a.state.E = v; } }, F.E));
+      // Stage
+      app.el.stage.innerHTML = '<div class="drawcard" id="sbDraw"></div>' +
+        '<div class="stationbar"><label for="sbSt">Read station</label><input type="range" id="sbSt" min="0" max="300" step="1"></div>' +
+        '<div class="stationro" id="sbStRo" aria-live="polite"></div>' +
+        '<p class="cap">The diagrams share one x axis, measured from support A. Drag a load arrow to move it. Click a diagram, or use the slider, to read values at a station.</p>';
+      $('sbSt').addEventListener('input', () => { ui.station = +$('sbSt').value; app.render(); });
+      wireDrawing(app);
+      buildLoads(app);
+    },
+    render(app) {
+      const s = app.state;
+      // Keep dependent fields honest when span or overhang change (non-destructive: flag, don't move).
+      app.fields.forEach(f => { if (/^(lda|sbTin|sbTout|sbOL|sbOR)/.test(f.o.id)) f.revalidate(); });
+      if (s.tAuto && s.loads.length) s.tTo = T.heaviestStation(s);
+      SOL = app.hasInvalid() ? null : T.solve(s);
+      // Show and hide sections.
+      $('sbOvBox').hidden = !s.overhang;
+      $('sbTq').hidden = s.mode !== 'shaft';
+      $('sbPW').hidden = s.torqueEntry !== 'power';
+      $('sbTD').hidden = s.torqueEntry === 'power';
+      $('sbTAutoBox').hidden = !s.tAuto;
+      $('sbExtBox').hidden = !s.extension;
+      $('sbE').closest('.fld').hidden = !s.deflection;
+      document.querySelectorAll('#sbLoads .ldcard').forEach(c => c.classList.toggle('sel', +c.dataset.id === ui.sel));
+      // Drawing
+      const card = $('sbDraw');
+      const hadFocus = document.activeElement && document.activeElement.id === 'sbSvg';
+      card.innerHTML = draw(app).svg;
+      card.classList.toggle('placing', ui.placing);
+      if (ui.placing) card.insertAdjacentHTML('beforeend', '<div class="hint">Click the shaft to place the new load. Esc cancels.</div>');
+      if (hadFocus) focusSvg();
+      const [lo, hi] = T.range(s), st = $('sbSt');
+      st.min = lo; st.max = hi;
+      if (ui.station === null && SOL) ui.station = Math.round(SOL.MmaxX);
+      if (ui.station !== null) { ui.station = Math.min(hi, Math.max(lo, ui.station)); st.value = ui.station; }
+      $('sbStRo').textContent = stationText(app);
+      results(app);
+      app.setWorking(SOL ? T.working(SOL, app.fmt, app.fmtU) : []);
+      app.describe(SOL ? T.describe(SOL, app.fmtU, app.masked()) : 'The drawing cannot update until the highlighted input is fixed.');
+    },
+    drawing: (app, opts) => draw(app, opts),
+    predictTargets: app => SOL ? T.targets(SOL) : [],
+    inputsSnapshot: app => T.snapshot(app.state),
+    report(app) {
+      const s = app.state, sol = SOL, fu = app.fmtU, m = app.masked();
+      const hide = v => m ? 'hidden until checked' : v;
+      const inputs = [['Mode', s.mode === 'shaft' ? 'Shaft (bending and torque)' : 'Beam (bending only)'], ['Span L', fu(s.L, 'mm')]];
+      if (s.overhang) inputs.push(['Overhangs (left, right)', fu(s.oL, 'mm') + ', ' + fu(s.oR, 'mm')]);
+      s.loads.forEach(l => inputs.push([esc(l.label), fu(l.P, 'N') + (l.P >= 0 ? ' down' : ' up') + ' at ' + fu(l.a, 'mm')]));
+      if (s.mode === 'shaft') {
+        inputs.push(['Torque', s.torqueEntry === 'power' ? fu(s.P, 'W') + ' at ' + fu(s.N, 'rpm') : fu(s.T, 'N·m')]);
+        inputs.push(['Torque carried', 'from ' + fu(s.tFrom, 'mm') + ' to ' + fu(s.tTo, 'mm')]);
+      }
+      inputs.push(['Diameter d', fu(s.d, 'mm')], ['Yield strength S<sub>y</sub>', fu(s.Sy, 'MPa') + (s.material !== 'custom' ? ' (placeholder)' : '')], ['Target n', app.fmt(s.nTarget)], ['Failure rule', s.rule === 'vonMises' ? 'von Mises' : 'Tresca'], ['K<sub>b</sub>, K<sub>t</sub>', app.fmt(s.Kb) + ', ' + app.fmt(s.Kt)]);
+      if (s.deflection) inputs.push(['Elastic modulus E', fu(s.E, 'GPa')]);
+      const outputs = [];
+      if (sol) {
+        outputs.push(['R<sub>A</sub>, R<sub>B</sub>', hide(fu(sol.RA, 'N') + ', ' + fu(sol.RB, 'N'))], ['|M|<sub>max</sub>', hide(fu(sol.MmaxAbs, 'N·m') + ' at ' + fu(sol.MmaxX, 'mm'))]);
+        if (s.mode === 'shaft') outputs.push(['T', fu(sol.T, 'N·m')]);
+        if (sol.crit) {
+          const c = sol.crit;
+          outputs.push(['Critical section', hide(fu(c.x, 'mm'))], ['M, T there', hide(fu(c.M, 'N·m') + ', ' + fu(c.T, 'N·m'))], ['σ, τ', hide(fu(c.sigma, 'MPa') + ', ' + fu(c.tau, 'MPa'))],
+            [s.rule === 'vonMises' ? 'σ′' : 'τ<sub>max</sub>', hide(fu(s.rule === 'vonMises' ? c.sigmaVM : c.tauMax, 'MPa'))], ['Safety factor n', hide(app.fmt(sol.n) + (sol.pass ? ' (meets target)' : ' (below target)'))]);
+        } else outputs.push(['Safety factor n', 'not defined: ' + sol.nReason]);
+        outputs.push(['Required d for n = ' + app.fmt(s.nTarget), sol.dReq === null ? 'not defined: no load' : hide(fu(sol.dReq, 'mm'))]);
+        if (sol.defl) outputs.push(['Max deflection', fu(sol.defl.max, 'mm') + ' at ' + fu(sol.defl.x, 'mm')]);
+      } else outputs.push(['Results', app.invalidReason()]);
+      const notes = [];
+      if (s.material !== 'custom') notes.push('Placeholder material value in use.');
+      (s.importNotes || []).forEach(n => notes.push(esc(n)));
+      return { inputs, outputs, notes };
+    },
+  });
+})();
+</script>
+</body>
+</html>

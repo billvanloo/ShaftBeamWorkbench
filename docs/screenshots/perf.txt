@@ -1,0 +1,1 @@
+Median full update (6 loads, deflection on), headless Chromium on the build machine: 15.9 ms
