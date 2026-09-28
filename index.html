@@ -1474,6 +1474,7 @@ const Shell = (function () {
       });
     }
     app.clearData = () => {
+      clearTimeout(saveT);                      // a pending autosave must not write the old design back
       S.clearAll(); G.del('name');
       app.settings = Object.assign({ sig: 3, team: '', classPeriod: '', predictFirst: false }, cfg.defaultSettings || {});
       app.log = []; app.state = cfg.defaultState(); nameEl.value = ''; app.invalid = {};

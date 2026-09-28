@@ -45,6 +45,8 @@ async function launch() {
 function serve(root) {
   const types = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.png': 'image/png', '.svg': 'image/svg+xml', '.json': 'application/json' };
   const server = http.createServer((req, res) => {
+    // A same-origin page with no scripts, so storage can be cleared with no tool timers alive.
+    if (req.url === '/__blank') { res.writeHead(200, { 'Content-Type': 'text/html' }); return res.end('<!doctype html><title>blank</title><link rel="icon" href="data:,">'); }
     const file = path.join(root, decodeURIComponent(req.url.split('?')[0]));
     if (!file.startsWith(root)) { res.writeHead(403); return res.end(); }
     fs.readFile(file, (err, data) => {
@@ -80,7 +82,12 @@ async function start(root, opts) {
     t.ok(name, good, 'got ' + got + ', expected ' + exp);
   };
   t.open = async (q) => { await page.goto(base + '/index.html' + (q || '')); await page.waitForFunction(() => !!window.__app); };
-  t.fresh = async () => { await page.evaluate(() => { try { localStorage.clear(); } catch (e) { } }); await t.open(); };
+  // Start clean: leave the tool first so a pending autosave cannot write old state back.
+  t.fresh = async () => {
+    await page.goto(base + '/__blank');
+    await page.evaluate(() => { try { localStorage.clear(); } catch (e) { } });
+    await t.open();
+  };
   t.close = async () => { await browser.close(); server.close(); };
   t.finish = async () => {
     t.ok('no console errors during the run', t.errors.length === 0, t.errors.slice(0, 5).join(' | '));
@@ -156,7 +163,6 @@ async function standard(t, opts) {
     await page.click('#shTheme');
     await page.screenshot({ path: path.join(opts.shotDir, opts.shotName + (dark ? '-light' : '-dark') + '.png') });
   }
-  await page.evaluate(() => { localStorage.setItem('ebtn-theme', JSON.stringify('light')); });
   await t.fresh();
 
   console.log('Standard: help');
