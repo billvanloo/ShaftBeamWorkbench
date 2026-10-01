@@ -1,4 +1,4 @@
-// ecosystem/shell/shell.js v1.0.0
+// ecosystem/shell/shell.js v1.1.0
 // Shared tool frame for the Engineered by the Numbers tools (spec 00 §2–8):
 // header, footer, help, themes, small-screen notice, predict-first, show the
 // working, field validation, save/load, PNG export, printable report, the
@@ -423,7 +423,7 @@ const Shell = (function () {
         const model = isNum(t.model) ? t.model : null;
         const rec = PL.makeRecord({
           tool: cfg.tool, toolVersion: cfg.version, student, team: app.settings.team, classPeriod: app.settings.classPeriod,
-          problemId: pid, quantity: t.quantity || t.key, unit: t.unit || '', predicted: p, model,
+          problemId: pid, quantity: t.quantity || t.key, unit: t.unit || '', predicted: p, model, measured: t.measured,
           attempt: PL.nextAttempt(app.log, student, pid, t.quantity || t.key), inputs: snap,
         });
         recs.push(rec);
@@ -439,6 +439,15 @@ const Shell = (function () {
       const again = $('shAgain'); if (again) again.focus();
     }
     app.check = check;
+    // Attach a measured value to this student's latest prediction of a quantity for the
+    // current inputs (a target's `quantity`). Returns the updated record, or null when
+    // there is no such prediction yet. A target can also carry `measured` at Check.
+    app.recordMeasured = (quantity, measured) => {
+      const res = PL.annotateLatest(app.log, { student: app.student() || 'unnamed', problemId: problemId(), quantity, tool: cfg.tool }, { measured });
+      if (res.index < 0) return null;
+      app.log = res.records; saveLog();
+      return app.log[res.index];
+    };
 
     /* =================================================================
        SHOW THE WORKING (00 §5)
