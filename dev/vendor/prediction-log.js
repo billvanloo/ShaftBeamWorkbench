@@ -1,4 +1,4 @@
-// ecosystem/prediction-log.js v1.0.0
+// ecosystem/prediction-log.js v1.1.0
 // Prediction Log record format (spec 07 Part A). Pure functions, no DOM.
 // Every tool writes records through this module so the Collector can merge them.
 const PredictionLog = (function () {
@@ -79,6 +79,21 @@ const PredictionLog = (function () {
     if (measured !== undefined) { out.measured = isNum(measured) ? measured : null; out.pctMeasVsModel = pctDiff(out.measured, out.model); }
     if (note !== undefined) out.note = String(note);
     return out;
+  }
+
+  // Record a measured value (and/or note) on the most recent record that matches
+  // student, problemId and quantity (and tool, when given). Returns the new list and
+  // the index changed, or index -1 when nothing matches. The list passed in is not changed.
+  function annotateLatest(records, match, fields) {
+    for (let i = records.length - 1; i >= 0; i--) {
+      const r = records[i];
+      if (r.student === match.student && r.problemId === match.problemId && r.quantity === match.quantity && (!match.tool || r.tool === match.tool)) {
+        const out = records.slice();
+        out[i] = annotate(r, fields);
+        return { records: out, index: i };
+      }
+    }
+    return { records, index: -1 };
   }
 
   /* ---------------------------------------------------------------- JSON */
@@ -199,7 +214,7 @@ const PredictionLog = (function () {
   return {
     SCHEMA, SCHEMA_VERSION, FIELDS, NEWER_WARNING,
     pctDiff, isoLocal, shortHash, stableStringify, sandboxProblemId, nextAttempt,
-    makeRecord, annotate, toJSON, toCSV, fromCSV, fromJSON, parseFile, parseCSVRows, dedupe, toTSVRow,
+    makeRecord, annotate, annotateLatest, toJSON, toCSV, fromCSV, fromJSON, parseFile, parseCSVRows, dedupe, toTSVRow,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PredictionLog;

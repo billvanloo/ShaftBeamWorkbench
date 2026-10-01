@@ -258,7 +258,7 @@ kbd{font:12px var(--font-mono);border:1px solid var(--steel-edge);border-bottom-
 <noscript>The Shaft and Beam Workbench needs JavaScript turned on.</noscript>
 <script>
 /* BEGIN vendor:prediction-log.js */
-// ecosystem/prediction-log.js v1.0.0
+// ecosystem/prediction-log.js v1.1.0
 // Prediction Log record format (spec 07 Part A). Pure functions, no DOM.
 // Every tool writes records through this module so the Collector can merge them.
 const PredictionLog = (function () {
@@ -339,6 +339,21 @@ const PredictionLog = (function () {
     if (measured !== undefined) { out.measured = isNum(measured) ? measured : null; out.pctMeasVsModel = pctDiff(out.measured, out.model); }
     if (note !== undefined) out.note = String(note);
     return out;
+  }
+
+  // Record a measured value (and/or note) on the most recent record that matches
+  // student, problemId and quantity (and tool, when given). Returns the new list and
+  // the index changed, or index -1 when nothing matches. The list passed in is not changed.
+  function annotateLatest(records, match, fields) {
+    for (let i = records.length - 1; i >= 0; i--) {
+      const r = records[i];
+      if (r.student === match.student && r.problemId === match.problemId && r.quantity === match.quantity && (!match.tool || r.tool === match.tool)) {
+        const out = records.slice();
+        out[i] = annotate(r, fields);
+        return { records: out, index: i };
+      }
+    }
+    return { records, index: -1 };
   }
 
   /* ---------------------------------------------------------------- JSON */
@@ -459,7 +474,7 @@ const PredictionLog = (function () {
   return {
     SCHEMA, SCHEMA_VERSION, FIELDS, NEWER_WARNING,
     pctDiff, isoLocal, shortHash, stableStringify, sandboxProblemId, nextAttempt,
-    makeRecord, annotate, toJSON, toCSV, fromCSV, fromJSON, parseFile, parseCSVRows, dedupe, toTSVRow,
+    makeRecord, annotate, annotateLatest, toJSON, toCSV, fromCSV, fromJSON, parseFile, parseCSVRows, dedupe, toTSVRow,
   };
 })();
 if (typeof module !== 'undefined' && module.exports) module.exports = PredictionLog;
@@ -822,7 +837,7 @@ const BeamCore = (function () {
 if (typeof module !== 'undefined' && module.exports) module.exports = BeamCore;
 /* END vendor:beam-core.js */
 /* BEGIN vendor:shell.js */
-// ecosystem/shell/shell.js v1.0.0
+// ecosystem/shell/shell.js v1.1.0
 // Shared tool frame for the Engineered by the Numbers tools (spec 00 §2–8):
 // header, footer, help, themes, small-screen notice, predict-first, show the
 // working, field validation, save/load, PNG export, printable report, the
@@ -1247,7 +1262,7 @@ const Shell = (function () {
         const model = isNum(t.model) ? t.model : null;
         const rec = PL.makeRecord({
           tool: cfg.tool, toolVersion: cfg.version, student, team: app.settings.team, classPeriod: app.settings.classPeriod,
-          problemId: pid, quantity: t.quantity || t.key, unit: t.unit || '', predicted: p, model,
+          problemId: pid, quantity: t.quantity || t.key, unit: t.unit || '', predicted: p, model, measured: t.measured,
           attempt: PL.nextAttempt(app.log, student, pid, t.quantity || t.key), inputs: snap,
         });
         recs.push(rec);
@@ -1263,6 +1278,15 @@ const Shell = (function () {
       const again = $('shAgain'); if (again) again.focus();
     }
     app.check = check;
+    // Attach a measured value to this student's latest prediction of a quantity for the
+    // current inputs (a target's `quantity`). Returns the updated record, or null when
+    // there is no such prediction yet. A target can also carry `measured` at Check.
+    app.recordMeasured = (quantity, measured) => {
+      const res = PL.annotateLatest(app.log, { student: app.student() || 'unnamed', problemId: problemId(), quantity, tool: cfg.tool }, { measured });
+      if (res.index < 0) return null;
+      app.log = res.records; saveLog();
+      return app.log[res.index];
+    };
 
     /* =================================================================
        SHOW THE WORKING (00 §5)
